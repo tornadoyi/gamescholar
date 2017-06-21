@@ -1,6 +1,6 @@
 import tensorflow as tf
 import numpy as np
-from .ac_net import ACNet
+from ac_net import ACNet
 
 
 class ACWorker(object):
@@ -19,9 +19,9 @@ class ACWorker(object):
             #     saver.save(SESS, "models-pig/a3c-sw1-player", global_step=GLOBAL_EP)
             while True:
                 a = self.AC.choose_action(s)
-                a = self._transform_action(a)
-                s_, r, done, info = self.env.step(a)
-                print('action:', a, 'reward:', r)
+                s_, r, done, info = self.env.step(self._transform_action(a))
+                self.env.render()
+                #print('action:', a, 'reward:', r)
                 buffer_s.append(s)
                 buffer_a.append(a)
                 buffer_r.append(r)

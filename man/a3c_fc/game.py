@@ -8,7 +8,7 @@ Attr = config.Attr
 
 
 # env constant
-config.NUM_NPC = 1
+config.NUM_NPC = 32
 config.MAP_SIZE = Vector2(30, 30)
 
 
@@ -30,7 +30,7 @@ class NPCExtension():
             self.attribute.direct = Vector2.zero
 
 
-@extension(man.game)
+@extension(man.Game)
 class GameExtension():
     def _check_terminal(self):
         player_alive = alive_object_count(self._map.players)
@@ -45,10 +45,10 @@ class EnvironmentExtension():
     def player(self): return self.game.map.players[0]
 
     def _reset(self):
-        super(man.EnvironmentGym, self)._reset()
+        s = super(man.EnvironmentGym, self)._reset()
         self.npc_count = alive_object_count(self.game.map.npcs)
         self.player_hp = self.player.attribute.hp
-
+        return s
 
     # action space
     # use move toward (x,y)   -- x~[0,1] y ~[0,1]
@@ -83,7 +83,7 @@ class SerializerExtension():
     def _deserialize_action(self, data):
         # data 1x3 (x, y, speed)
         direct = Vector2(data[0], data[1])
-        speed = data[2]
+        speed = None#data[2]
         actions = [(config.PLAYER_IDS[0], config.Action.move_toward, direct, speed)]
         return actions
 
@@ -95,12 +95,12 @@ class SerializerExtension():
     '''
 
 
-def run_game(render=False):
+def run(render=False):
     import gym
     import time
     env = gym.make(config.GAME_NAME)
     env.reset()
-
+    env.env.game.speed_scale = 8
     while True:
         if env.env.terminal: env.reset()
         time.sleep(1.0 / 60)
@@ -108,6 +108,5 @@ def run_game(render=False):
         if render: env.render()
 
 
-
-if __name__ == "__main__":
-    run_game()
+if __name__ == '__main__':
+    run()

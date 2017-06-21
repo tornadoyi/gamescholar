@@ -8,9 +8,9 @@ import threading
 import gym
 import os
 import shutil
-from .extension import config
-from .ac_net import ACNet
-from .ac_worker import ACWorker
+from game import config
+from ac_net import ACNet
+from ac_worker import ACWorker
 
 
 LR_A = 0.001  # learning rate for actor
@@ -43,7 +43,8 @@ def run():
     # Create worker
     for i in range(N_WORKERS):
         i_name = 'W_%i' % i  # worker name
-        env = gym.make(config.GAME)
+        env = gym.make(config.GAME_NAME)
+        env.env.game.speed_scale = 8
         ac = ACNet(sess, i_name, N_S, N_A, OPT_A, global_ac=GLOBAL_AC, entropy_beta=ENTROPY_BETA)
         workers.append(ACWorker(ac, env, GAMMA))
 
@@ -64,3 +65,7 @@ def run():
         t.start()
         worker_threads.append(t)
     COORD.join(worker_threads)
+
+
+if __name__ == '__main__':
+    run()
