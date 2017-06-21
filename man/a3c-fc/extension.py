@@ -1,13 +1,16 @@
 from gym import spaces
+
 from gymgame.engine import Vector2, Vector3, extension
 from gymgame.tinyrpg import man
 
 config = man.config
 Attr = config.Attr
 
+
 # env constant
 config.NUM_NPC = 1
 config.MAP_SIZE = Vector2(30, 30)
+
 
 def alive_object_count(list):
     count = 0
@@ -103,6 +106,7 @@ def run_game(render=False):
         time.sleep(1.0 / 60)
         env.step([-1, 1, 1])
         if render: env.render()
+
 
 
 if __name__ == "__main__":
