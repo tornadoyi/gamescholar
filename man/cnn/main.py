@@ -3,8 +3,8 @@ import threading
 import gym
 import os
 import shutil
-from extension import config
-from a3c import Worker, ACNet
+from .extension import config
+from .a3c import Worker, ACNet
 
 
 LR_A = 0.001  # learning rate for actor
