@@ -19,6 +19,7 @@ class ACWorker(object):
             #     saver.save(SESS, "models-pig/a3c-sw1-player", global_step=GLOBAL_EP)
             while True:
                 a = self.AC.choose_action(s)
+                a = self._transform_action(a)
                 s_, r, done, info = self.env.step(a)
                 print('action:', a, 'reward:', r)
                 buffer_s.append(s)
@@ -55,3 +56,10 @@ class ACWorker(object):
                 if step_callback is not None: step_callback()
 
                 if done: break
+
+    def _transform_action(self, a):
+        """transform discrete action to continous action space"""
+        move_toward = [
+            (0,0), (0,1), (0,-1), (-1,0), (1,0)
+        ]
+        return move_toward[a]

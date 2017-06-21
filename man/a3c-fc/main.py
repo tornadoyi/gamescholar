@@ -30,7 +30,7 @@ def run():
     env = gym.make(config.GAME_NAME)
     s = env.reset()
     N_S = s.shape[0] # env.observation_space.shape[0]
-    N_A = env.action_space.n
+    N_A = 5 # env.action_space.n
     env.close()
 
     sess = tf.InteractiveSession()
