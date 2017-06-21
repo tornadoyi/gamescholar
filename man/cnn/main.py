@@ -21,8 +21,9 @@ GAMMA = 0.9
 ENTROPY_BETA = 0.001
 
 def run():
-    env = gym.make(config.GAME)
-    N_S = env.observation_space.shape[0]
+    env = gym.make(config.GAME_NAME)
+    s = env.reset()
+    N_S = s.shape[0] # env.observation_space.shape[0]
     N_A = env.action_space.n
     env.close()
 
