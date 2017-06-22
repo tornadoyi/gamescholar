@@ -3,11 +3,17 @@ import numpy as np
 from ac_net import ACNet
 
 
+
 class ACWorker(object):
-    def __init__(self, ac, env, gamma=0.9):
+    """A worker to manage game process(include training and rendering)
+    run_mode: training/rendering(only feed-forward)
+    """
+
+    def __init__(self, ac, env, gamma=0.9, run_mode="training"):
         self.env = env
         self.gamma = gamma
         self.AC = ac
+        self.run_mode = run_mode
 
     def work(self, sess, update_nsteps=20, should_stop=None, step_callback=None, train_callback=None):
         total_step = 1
@@ -20,11 +26,13 @@ class ACWorker(object):
             while True:
                 a = self.AC.choose_action(s)
                 s_, r, done, info = self.env.step(self._transform_action(a))
-                self.env.render()
-                #print('action:', a, 'reward:', r)
                 buffer_s.append(s)
                 buffer_a.append(a)
                 buffer_r.append(r)
+
+                if self.run_mode == "rendering":
+                    self.env.render()
+                #print('action:', a, 'reward:', r)
 
                 if total_step % update_nsteps == 0 or done:  # update global and assign to local net
                     if done:
@@ -44,12 +52,15 @@ class ACWorker(object):
                         self.AC.a_his: buffer_a,
                         self.AC.v_target: buffer_v_target,
                     }
-                    self.AC.update_global(feed_dict)
+
+                    if self.run_mode == 'training':
+                        self.AC.update_global(feed_dict)
 
                     buffer_s, buffer_a, buffer_r = [], [], []
                     self.AC.pull_global()
 
-                    if train_callback is not None: train_callback()
+                    if self.run_mode == 'training':
+                        if train_callback is not None: train_callback()
 
                 s = s_
                 total_step += 1

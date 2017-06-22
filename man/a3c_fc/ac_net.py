@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 
-
+# Attention: this a3c output is discret!
 
 class ACNet(object):
     def __init__(self,
