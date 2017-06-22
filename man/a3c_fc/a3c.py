@@ -1,5 +1,5 @@
 """
-flat-a3c
+flat-a3c launch entry
 A3C with a flattened 1D array state (with all info of all objects)
 """
 
@@ -19,7 +19,7 @@ LR_C = 0.001  # learning rate for critic
 
 OUTPUT_GRAPH = True
 LOG_DIR = './log'
-N_WORKERS = 1
+N_WORKERS = 2
 MAX_GLOBAL_EP = 30000
 GLOBAL_NET_SCOPE = 'Global_Net'
 UPDATE_GLOBAL_ITER = 20
@@ -39,15 +39,17 @@ def run():
     # OPT_C = tf.train.RMSPropOptimizer(LR_C, name='RMSPropC')
     GLOBAL_AC = ACNet(sess, GLOBAL_NET_SCOPE, N_S, N_A, OPT_A,
                       entropy_beta=ENTROPY_BETA)  # we only need its params
+
     workers = []
     # Create worker
+    assert N_WORKERS >= 2  # there must be a rendering worker and a training worker
     for i in range(N_WORKERS):
+        run_mode = "rendering" if i == 0 else "training"
         i_name = 'W_%i' % i  # worker name
         env = gym.make(config.GAME_NAME)
         env.env.game.speed_scale = 8
         ac = ACNet(sess, i_name, N_S, N_A, OPT_A, global_ac=GLOBAL_AC, entropy_beta=ENTROPY_BETA)
-        workers.append(ACWorker(ac, env, GAMMA))
-
+        workers.append(ACWorker(ac, env, GAMMA, run_mode=run_mode))
 
     COORD = tf.train.Coordinator()
     saver = tf.train.Saver()
