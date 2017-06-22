@@ -8,6 +8,7 @@ import threading
 import gym
 import os
 import shutil
+import time
 from env import config
 from ac_net import ACNet
 from ac_worker import ACWorker
@@ -25,6 +26,22 @@ GLOBAL_NET_SCOPE = 'Global_Net'
 UPDATE_GLOBAL_ITER = 20
 GAMMA = 0.9
 ENTROPY_BETA = 0.001
+
+SAVE_SECOND = 10
+SAVE_PATH = "models/a3c"
+
+class SaveWorker(object):
+    def __init__(self, sess):
+        self.sess = sess
+        self.saver = tf.train.Saver()
+
+    def __call__(self, *args, **kwargs):
+        dir = os.path.dirname(SAVE_PATH)
+        if not os.path.isdir(dir): os.makedirs(dir)
+        while True:
+            time.sleep(SAVE_SECOND)
+            self.saver.save(self.sess, SAVE_PATH)
+
 
 def run(render=False):
     env = gym.make(config.GAME_NAME)
@@ -52,8 +69,8 @@ def run(render=False):
     ac = ACNet(sess, 'test', N_S, N_A, OPT_A, global_ac=GLOBAL_AC, entropy_beta=ENTROPY_BETA)
     tester = ACWorker(ac, env, GAMMA)
 
-    # create saver
-    saver = tf.train.Saver()
+    # create save worker
+    saver = SaveWorker(sess)
 
     # init variables
     sess.run(tf.global_variables_initializer())
@@ -76,6 +93,12 @@ def run(render=False):
 
     # test worker
     job = lambda: tester.test(render=render)
+    t = threading.Thread(target=job)
+    t.start()
+    worker_threads.append(t)
+
+    # save worker
+    job = lambda: saver()
     t = threading.Thread(target=job)
     t.start()
     worker_threads.append(t)

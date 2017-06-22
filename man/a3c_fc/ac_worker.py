@@ -1,6 +1,8 @@
 import tensorflow as tf
 import numpy as np
 from ac_net import ACNet
+import time
+import os
 
 
 
@@ -15,13 +17,19 @@ class ACWorker(object):
         total_step = 1
         buffer_s, buffer_a, buffer_r = [], [], []
         while (should_stop is None) or (not should_stop()):
+
             s = self.env.reset()
+            st_time = time.time()
+            step_time = 0
 
             # if GLOBAL_EP % 1 == 0:
             #     saver.save(SESS, "models-pig/a3c-sw1-player", global_step=GLOBAL_EP)
             while True:
                 a = self.ac.choose_action(s)
+                step_st = time.time()
                 s_, r, done, info = self.env.step(self._transform_action(a))
+                step_time += time.time() - st_time
+
                 buffer_s.append(s)
                 buffer_a.append(a)
                 buffer_r.append(r)
@@ -63,6 +71,8 @@ class ACWorker(object):
 
                 if done: break
 
+            #print("{0} current resets: {1} cost:{2}  {3}".format(self.ac.scope, self.env.env.game.total_resets, time.time()-st_time, step_time))
+            #st_time = time.time()
 
 
     def test(self, should_stop=None, render=False):
@@ -78,6 +88,9 @@ class ACWorker(object):
                 a = self.ac.choose_action(s)
                 s_, r, done, info = self.env.step(self._transform_action(a))
                 if done: break
+
+            print('total steps: {0}'.format(self.env.env.game.steps))
+
 
 
     def _transform_action(self, a):

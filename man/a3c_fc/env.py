@@ -87,11 +87,14 @@ def run(render=False):
     import time
     env = gym.make(config.GAME_NAME)
     env.reset()
-    while True:
+    t = time.time()
+    for i in range(5000):#while True:
         if env.env.terminal: env.reset()
         time.sleep(1.0 / 60)
         env.step([-1, 1, 1])
         if render: env.render()
+
+    print('cost: {0}'.format(time.time() - t))
 
 
 if __name__ == '__main__':
