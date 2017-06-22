@@ -1,3 +1,4 @@
+import numpy as np
 from gym import spaces
 
 from gymgame.engine import Vector2, Vector3, extension
@@ -8,8 +9,8 @@ Attr = config.Attr
 
 
 # env constant
-config.NUM_NPC = 32
 config.MAP_SIZE = Vector2(30, 30)
+config.NUM_NPC = 64
 
 
 def alive_object_count(list):
@@ -19,15 +20,23 @@ def alive_object_count(list):
         count += 1
     return count
 
+
 @extension(man.NPC)
 class NPCExtension():
     def _update(self):
-        if self.attribute.hp < 1e-6: return
         self.move_toward(self.attribute.direct)
         if self.attribute.hp < 1e-6 or not self._map.in_bounds(self.attribute.position):
-            self.attribute.hp = 0
-            self.attribute.position = config.MAP_SIZE
-            self.attribute.direct = Vector2.zero
+            self._revive()
+
+
+    def _revive(self):
+        player = self._map.players[0]
+        position = config.gen_init_position((0.9, 0.99))
+        direct = config.gen_npc_direct(position, player.attribute.position)
+        self.attribute.position = position
+        self.attribute.direct = direct
+        self.attribute.hp = self.attribute.max_hp
+
 
 
 @extension(man.Game)
@@ -76,23 +85,13 @@ class EnvironmentExtension():
 @extension(man.Serializer)
 class SerializerExtension():
 
-    #def serialize_state(self, game):
-        #man.Serializer.serialize_state(self, game)
-
-
     def _deserialize_action(self, data):
         # data 1x3 (x, y, speed)
         direct = Vector2(data[0], data[1])
         speed = None#data[2]
-        actions = [(config.PLAYER_IDS[0], config.Action.move_toward, direct, speed)]
+        actions = [('player-0', config.Action.move_toward, direct, speed)]
         return actions
 
-
-    '''
-    def _select_character(self, k):
-        self._select_object(k)
-        k.add(Attr.hp, None, k.n_div_tag(Attr.hp))
-    '''
 
 
 def run(render=False):
@@ -100,7 +99,6 @@ def run(render=False):
     import time
     env = gym.make(config.GAME_NAME)
     env.reset()
-    env.env.game.speed_scale = 8
     while True:
         if env.env.terminal: env.reset()
         time.sleep(1.0 / 60)
