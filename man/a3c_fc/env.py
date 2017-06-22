@@ -65,20 +65,8 @@ class EnvironmentExtension():
     def _init_action_space(self): return spaces.Box(low=-1, high=1, shape=(2,))
 
     def _reward(self):
-        def _sync():
-            self.npc_count = alive_object_count(self.game.map.npcs)
-            self.player_hp = self.player.attribute.hp
-
-        sub_hp = self.player_hp - self.player.attribute.hp
-        if sub_hp > 0:
-            _sync()
-            return -sub_hp / 10.0
-
-        sub_npc = self.npc_count - alive_object_count(self.game.map.npcs)
-        if sub_npc > 0:
-            _sync()
-            return sub_npc / 10.0
-
+        if self.terminal: return -0.1
+        if self.game.steps > 4: return 0.1
         return 0.0
 
 
