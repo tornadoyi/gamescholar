@@ -9,9 +9,18 @@ Attr = config.Attr
 
 
 # env constant
-config.MAP_SIZE = Vector2(30, 30)
-config.NUM_NPC = 64
+config.MAP_SIZE = Vector2(10, 10)
+config.NUM_NPC = 1
 
+config.BASE_PLAYER.speed = 5.0
+config.BASE_NPC.speed = 5.0
+
+
+config.NPC_AIM_PROBABILITY = 1.0
+
+config.NPC_DIRECT_SHAKE_ANGLE = 0
+
+config.GAME_PARAMS.fps = 10
 
 def alive_object_count(list):
     count = 0
@@ -65,9 +74,12 @@ class EnvironmentExtension():
     def _init_action_space(self): return spaces.Box(low=-1, high=1, shape=(2,))
 
     def _reward(self):
-        if self.terminal: return -0.1
-        if self.game.steps > 4: return 0.1
-        return 0.0
+        if self.terminal: return -1.0
+        return 1 / 20.0
+
+        #if self.terminal: return -0.1
+        #if self.game.steps > 4: return 0.1
+        #return 0.0
 
 
 @extension(man.Serializer)
@@ -79,6 +91,10 @@ class SerializerExtension():
         speed = None#data[2]
         actions = [('player-0', config.Action.move_toward, direct, speed)]
         return actions
+
+    def _select_character(self, k):
+        k.add(Attr.position, None, lambda v, norm: v / norm.game.map.bounds.size * 2)
+
 
 
 

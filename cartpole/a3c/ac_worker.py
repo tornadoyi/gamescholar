@@ -2,8 +2,6 @@ import tensorflow as tf
 import numpy as np
 import time
 import os
-import arrow
-
 from ac_net import ACNet
 
 
@@ -17,28 +15,15 @@ class ACWorker(object):
 
     def train(self, update_nsteps=20, should_stop=None, step_callback=None, train_callback=None):
         total_step = 1
-        episode = 1
-        ep_start = arrow.now()
         buffer_s, buffer_a, buffer_r = [], [], []
         while (should_stop is None) or (not should_stop()):
 
             s = self.env.reset()
-            st_time = time.time()
-            step_time = 0
 
-            if episode % 100 == 0:
-                print(self.name, ">>>>EP#", episode, ">>>last 100 ep time cost:",
-                      (arrow.now() - ep_start).total_seconds())
-                ep_start = arrow.now()
-            episode += 1
-
-            # if GLOBAL_EP % 1 == 0:
-            #     saver.save(SESS, "models-pig/a3c-sw1-player", global_step=GLOBAL_EP)
             while True:
                 a = self.ac.choose_action(s)
                 step_st = time.time()
-                s_, r, done, info = self.env.step(self._transform_action(a))
-                step_time += time.time() - st_time
+                s_, r, done, info = self.env.step(a)
 
                 buffer_s.append(s)
                 buffer_a.append(a)
@@ -82,13 +67,12 @@ class ACWorker(object):
 
                 if done: break
 
-            #print('thread total steps: {0}'.format(self.env.env.game.steps))
-            #print("{0} current resets: {1} cost:{2}  {3}".format(self.ac.scope, self.env.env.game.total_resets, time.time()-st_time, step_time))
-            #st_time = time.time()
 
 
     def test(self, should_stop=None, render=False):
         total_step = 0
+        rewards = 0
+        ngames = 0
         while (should_stop is None) or (not should_stop()):
             total_step += 1
 
@@ -98,23 +82,23 @@ class ACWorker(object):
             # reset env
             s = self.env.reset()
 
+            reward = 0
             while True:
                 if render: self.env.render()
 
                 # choose and do action
                 a = self.ac.choose_action(s)
-                s, r, done, info = self.env.step(self._transform_action(a))
+                s, r, done, info = self.env.step(a)
+
+                rewards += r
 
                 # check terminal
                 if done: break
 
-            print('total steps: {0}'.format(self.env.env.game.steps))
+            ngames += 1
+
+            if ngames % 10 == 0:
+                print(rewards / 10.0)
+                rewards = 0
 
 
-
-    def _transform_action(self, a):
-        """transform discrete action to continous action space"""
-        move_toward = [
-            (0,0), (0,1), (0,-1), (-1,0), (1,0)
-        ]
-        return move_toward[a]

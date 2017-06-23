@@ -9,7 +9,7 @@ import gym
 import os
 import shutil
 import time
-from env import config
+import gym
 from ac_net import ACNet
 from ac_worker import ACWorker
 
@@ -17,6 +17,7 @@ from ac_worker import ACWorker
 LR_A = 0.001  # learning rate for actor
 LR_C = 0.001  # learning rate for critic
 
+GAME = 'CartPole-v0'
 
 OUTPUT_GRAPH = True
 LOG_DIR = './log'
@@ -46,9 +47,9 @@ class SaveWorker(object):
 
 
 def run(render=False):
-    env = gym.make(config.GAME_NAME)
+    env = gym.make(GAME)
     s = env.reset()
-    N_S, N_A = s.shape[0], 5
+    N_S, N_A = env.observation_space.shape[0], env.action_space.n
     env.close()
 
     sess = tf.InteractiveSession()
@@ -62,12 +63,12 @@ def run(render=False):
     workers = []
     for i in range(N_WORKERS):
         i_name = 'W_%i' % i  # worker name
-        env = gym.make(config.GAME_NAME)
+        env = gym.make(GAME)
         ac = ACNet(sess, i_name, N_S, N_A, OPT_A, global_ac=GLOBAL_AC, entropy_beta=ENTROPY_BETA)
         workers.append(ACWorker(ac, env, GAMMA, name=i_name))
 
     # create test worker
-    env = gym.make(config.GAME_NAME)
+    env = gym.make(GAME)
     ac = ACNet(sess, 'test', N_S, N_A, OPT_A, global_ac=GLOBAL_AC, entropy_beta=ENTROPY_BETA)
     tester = ACWorker(ac, env, GAMMA, name="test")
 
