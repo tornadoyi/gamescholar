@@ -106,7 +106,9 @@ class ACWorker(object):
                 s, r, done, info = self.env.step(self._transform_action(a))
 
                 # check terminal
-                if done: break
+                if done:
+                    self.env.render()
+                    break
 
             print('total steps: {0}'.format(self.env.env.game.steps))
 
