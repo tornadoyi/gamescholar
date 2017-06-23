@@ -62,12 +62,12 @@ def run(render=False):
         i_name = 'W_%i' % i  # worker name
         env = gym.make(config.GAME_NAME)
         ac = ACNet(sess, i_name, N_S, N_A, OPT_A, global_ac=GLOBAL_AC, entropy_beta=ENTROPY_BETA)
-        workers.append(ACWorker(ac, env, GAMMA))
+        workers.append(ACWorker(ac, env, GAMMA, name=i_name))
 
     # create test worker
     env = gym.make(config.GAME_NAME)
     ac = ACNet(sess, 'test', N_S, N_A, OPT_A, global_ac=GLOBAL_AC, entropy_beta=ENTROPY_BETA)
-    tester = ACWorker(ac, env, GAMMA)
+    tester = ACWorker(ac, env, GAMMA, name="test")
 
     # create save worker
     saver = SaveWorker(sess)
@@ -92,10 +92,11 @@ def run(render=False):
         worker_threads.append(t)
 
     # test worker
-    job = lambda: tester.test(render=render)
-    t = threading.Thread(target=job)
-    t.start()
-    worker_threads.append(t)
+    if render:
+        job = lambda: tester.test(render=render)
+        t = threading.Thread(target=job)
+        t.start()
+        worker_threads.append(t)
 
     # save worker
     job = lambda: saver()

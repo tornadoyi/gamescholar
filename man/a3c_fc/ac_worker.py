@@ -1,26 +1,36 @@
 import tensorflow as tf
 import numpy as np
-from ac_net import ACNet
 import time
 import os
+import arrow
 
+from ac_net import ACNet
 
 
 class ACWorker(object):
 
-    def __init__(self, ac, env, gamma=0.9):
+    def __init__(self, ac, env, gamma=0.9, name=None):
         self.env = env
         self.gamma = gamma
         self.ac = ac
+        self.name = name
 
     def train(self, update_nsteps=20, should_stop=None, step_callback=None, train_callback=None):
         total_step = 1
+        episode = 1
+        ep_start = arrow.now()
         buffer_s, buffer_a, buffer_r = [], [], []
         while (should_stop is None) or (not should_stop()):
 
             s = self.env.reset()
             st_time = time.time()
             step_time = 0
+
+            if episode % 100 == 0:
+                print(self.name, ">>>>EP#", episode, ">>>last 100 ep time cost:",
+                      (arrow.now() - ep_start).total_seconds())
+                ep_start = arrow.now()
+            episode += 1
 
             # if GLOBAL_EP % 1 == 0:
             #     saver.save(SESS, "models-pig/a3c-sw1-player", global_step=GLOBAL_EP)
