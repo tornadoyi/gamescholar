@@ -88,7 +88,7 @@ def run(render=False):
 
     # train workers
     for worker in workers:
-        job = lambda: worker.train()
+        job = lambda: worker.train(update_nsteps=30)
         t = threading.Thread(target=job)
         t.start()
         worker_threads.append(t)

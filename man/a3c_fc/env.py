@@ -9,16 +9,18 @@ Attr = config.Attr
 
 
 # env constant
-config.MAP_SIZE = Vector2(10, 10)
-config.NUM_NPC = 1
+config.MAP_SIZE = Vector2(20, 20)
+config.NUM_NPC = 10
 
 config.BASE_PLAYER.speed = 5.0
+
 config.BASE_NPC.speed = 5.0
+config.BASE_NPC.radius = 0.1
 
 
-config.NPC_AIM_PROBABILITY = 1.0
+config.NPC_AIM_PROBABILITY = 0.3
 
-config.NPC_DIRECT_SHAKE_ANGLE = 0
+config.NPC_DIRECT_SHAKE_ANGLE = 0.1
 
 config.GAME_PARAMS.fps = 10
 
@@ -75,7 +77,7 @@ class EnvironmentExtension():
 
     def _reward(self):
         if self.terminal: return -1.0
-        return 1 / 20.0
+        return 1 / 100.0
 
         #if self.terminal: return -0.1
         #if self.game.steps > 4: return 0.1
