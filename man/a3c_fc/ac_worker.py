@@ -107,7 +107,7 @@ class ACWorker(object):
 
                 # check terminal
                 if done:
-                    self.env.render()
+                    if render: self.env.render()
                     break
 
             print('total steps: {0}'.format(self.env.env.game.steps))
