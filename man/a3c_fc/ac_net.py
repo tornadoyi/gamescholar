@@ -5,12 +5,12 @@ import numpy as np
 
 class ACNet(object):
     def __init__(self,
-                 sess, scope, n_state, n_action, optimizer,
+                 sess, scope, state_shape, n_action, optimizer,
                  global_ac=None,
                  entropy_beta=0.001):
         self.sess = sess
         self.scope = scope
-        self.n_state = n_state
+        self.state_shape = state_shape
         self.n_action = n_action
         self.optimizer = optimizer
         self.global_ac = global_ac
@@ -18,14 +18,14 @@ class ACNet(object):
 
         if global_ac is None:  # get global network
             with tf.variable_scope(scope):
-                self.S = tf.placeholder(tf.float32, [None, n_state], 'S')
+                self.S = tf.placeholder(tf.float32, [None, state_shape[0], state_shape[1], state_shape[2]], 'S')
                 self._build_net()
                 self.a_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=scope + '/actor')
                 self.c_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=scope + '/critic')
 
         else:  # local net, calculate losses
             with tf.variable_scope(scope):
-                self.S = tf.placeholder(tf.float32, [None, n_state], 'S')
+                self.S = tf.placeholder(tf.float32, [None, state_shape[0], state_shape[1], state_shape[2]], 'S')
                 self.A = tf.placeholder(tf.int32, [None, ], 'A')
                 self.R = tf.placeholder(tf.float32, [None, 1], 'R')
 
@@ -62,11 +62,15 @@ class ACNet(object):
 
     def _build_net(self):
         w_init = tf.random_normal_initializer(0., .1)
+
+        shape = self.S.get_shape()
+        layer = tf.reshape(self.S, (-1, shape[1].value * shape[2].value * shape[3].value))
+
         with tf.variable_scope('actor'):
-            l_a = tf.layers.dense(self.S, 200, tf.nn.relu6, kernel_initializer=w_init, name='la')
+            l_a = tf.layers.dense(layer, 200, tf.nn.relu6, kernel_initializer=w_init, name='la')
             pi = tf.layers.dense(l_a, self.n_action, tf.nn.softmax, kernel_initializer=w_init, name='ap')
         with tf.variable_scope('critic'):
-            l_c = tf.layers.dense(self.S, 100, tf.nn.relu6, kernel_initializer=w_init, name='lc')
+            l_c = tf.layers.dense(layer, 100, tf.nn.relu6, kernel_initializer=w_init, name='lc')
             v = tf.layers.dense(l_c, 1, kernel_initializer=w_init, name='v')  # state value
         return pi, v
 

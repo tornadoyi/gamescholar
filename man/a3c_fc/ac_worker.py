@@ -58,7 +58,7 @@ class ACWorker(object):
                         buffer_R.reverse()
 
                     # learn and sync to global ac
-                    buffer_s, buffer_a, buffer_R = np.vstack(buffer_s), np.array(buffer_a), np.vstack(buffer_R)
+                    buffer_s, buffer_a, buffer_R = np.array(buffer_s), np.array(buffer_a), np.vstack(buffer_R)
                     feed_dict = {
                         self.ac.S: buffer_s,
                         self.ac.A: buffer_a,
