@@ -56,9 +56,13 @@ def run(render):
             sum[count > 0] = sum[count>0] / count[count>0]
             a = np.argmax(sum)
 
+            print('mean: {0}'.format(sum))
+
 
             # RL take action and get next observation and reward
             s_, r, d, _ = env.step(a)
+
+            print('rewards: {0}'.format(r))
 
             for i in range(len(nets)):
                 net = nets[i]

@@ -40,8 +40,7 @@ class SerializerExtension():
 
 
     def _deserialize_action(self, data):
-        i = np.argmax(data)
-        direct = SerializerExtension.DIRECTS[i]
+        direct = SerializerExtension.DIRECTS[data]
         actions = [('player-0', config.Action.move_toward, direct, None)]
         return actions
 
