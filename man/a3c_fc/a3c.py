@@ -20,7 +20,7 @@ LR_C = 0.001  # learning rate for critic
 
 OUTPUT_GRAPH = True
 LOG_DIR = './log'
-N_WORKERS = 8
+N_WORKERS = 1
 MAX_GLOBAL_EP = 30000
 GLOBAL_NET_SCOPE = 'Global_Net'
 UPDATE_GLOBAL_ITER = 20
@@ -48,7 +48,7 @@ class SaveWorker(object):
 def run(render=False):
     env = gym.make(config.GAME_NAME)
     s = env.reset()
-    N_S, N_A = s.shape[0], 5
+    N_S, N_A = s.shape, 5
     env.close()
 
     sess = tf.InteractiveSession()
