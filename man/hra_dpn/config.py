@@ -8,6 +8,7 @@ from gymgame.tinyrpg import man
 config = man.config
 Attr = config.Attr
 
+config.GAME_PARAMS.max_steps = 300
 
 config.MAP_SIZE = Vector2(10, 10)
 
@@ -30,13 +31,13 @@ class SerializerExtension():
 
     def _serialize_state(self, k, game):
         grid = self._serialize_map(k, game.map)
-        coin_grid = grid[:, :, 1]
+        player_grid = grid[:, :, 0]
         s_coins = np.zeros(COIN_POOL_SIZE)
         for c in game.map.coins:
             id = int(c.attribute.id.split('-')[-1])
             s_coins[id] = 1
 
-        return np.hstack([coin_grid.ravel(), s_coins])
+        return np.hstack([player_grid.ravel(), s_coins])
 
 
     def _deserialize_action(self, data):
@@ -74,8 +75,19 @@ class DataExtension():
         return coins
 
 
+
 @extension(man.EnvironmentGym)
 class EnvExtension():
+    def _reward(self):
+        players = self.game.map.players
+        hits = np.array([player.step_hits for player in players])
+        coins = np.array([player.step_coins for player in players])
+        r = coins - hits
+        r[r == 0] = -1
+        r = r / 10
+        return r[0] if len(r) == 1 else r
+
+    '''
     def _reward(self):
         map = self.game.map
         player = map.players[0]
@@ -88,6 +100,7 @@ class EnvExtension():
             s_coins[id] = r
 
         return s_coins
+    '''
 
 
 
