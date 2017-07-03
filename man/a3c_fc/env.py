@@ -1,6 +1,6 @@
 import numpy as np
 from gym import spaces
-from gymgame.engine import Vector2, Vector3, extension
+from gymgame.engine import Vector2, extension
 from gymgame.tinyrpg import man
 
 config = man.config
@@ -8,8 +8,8 @@ Attr = config.Attr
 
 
 # env constant
-#config.MAP_SIZE = Vector2(20, 20)
-
+config.MAP_SIZE = Vector2(10, 10)
+config.GRID_SIZE = config.MAP_SIZE
 
 @extension(man.Serializer)
 class SerializerExtension():
@@ -20,6 +20,7 @@ class SerializerExtension():
         speed = None#data[2]
         actions = [('player-0', config.Action.move_toward, direct, speed)]
         return actions
+
 
 
 
