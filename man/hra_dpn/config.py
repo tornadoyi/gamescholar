@@ -30,12 +30,13 @@ class SerializerExtension():
 
     def _serialize_state(self, k, game):
         grid = self._serialize_map(k, game.map)
-        s_coins = np.zeros(config.NUM_COIN)
+        coin_grid = grid[:, :, 1]
+        s_coins = np.zeros(COIN_POOL_SIZE)
         for c in game.map.coins:
             id = int(c.attribute.id.split('-')[-1])
             s_coins[id] = 1
 
-        return np.hstack([grid.ravel(), s_coins])
+        return np.hstack([coin_grid.ravel(), s_coins])
 
 
     def _deserialize_action(self, data):
@@ -48,7 +49,6 @@ class SerializerExtension():
 @extension(man.Data)
 class DataExtension():
 
-    '''
     COIN_INIT_POSITIONS = [Vector2(7, 4),
                            Vector2(3, 9),
                            Vector2(9, 9),
@@ -59,37 +59,36 @@ class DataExtension():
                            Vector2(0, 1),
                            Vector2(4, 3),
                            Vector2(4, 1)]
-    '''
-    COIN_INIT_POSITIONS = [Vector2(*v) for v in np.random.randint(0, COIN_POOL_SIZE, COIN_POOL_SIZE*2).reshape(COIN_POOL_SIZE, -1)]
+
+    #COIN_INIT_POSITIONS = [Vector2(*v) for v in np.random.randint(0, COIN_POOL_SIZE, COIN_POOL_SIZE*2).reshape(COIN_POOL_SIZE, -1)]
 
     def _create_coin_infos(self):
         coins = []
         pos_indexes = random.sample(range(10), 5)
         for i in range(config.NUM_COIN):
+            pos_idx = pos_indexes[i]
+            tag = '{0}-{1}'.format(i, pos_idx)
             coin = copy.deepcopy(config.BASE_COIN)
-            coin.id = coin.id.format(i)
-            coin.position = DataExtension.COIN_INIT_POSITIONS[pos_indexes[i]]
+            coin.id = coin.id.format(tag)
+            coin.position = DataExtension.COIN_INIT_POSITIONS[pos_idx]
             coins.append(coin)
         return coins
 
 
 @extension(man.EnvironmentGym)
 class EnvExtension():
-    pass
-    '''
     def _reward(self):
         map = self.game.map
         player = map.players[0]
         coins = map.coins
         s_coins = np.zeros(config.NUM_COIN, dtype=float)
         for c in coins:
-            id = int(c.attribute.id.split('-')[-1])
+            id = int(c.attribute.id.split('-')[-2])
             d = c.attribute.position.distance(player.attribute.position)
-            r = 1 if d == 0 else 1 / d
+            r = 1 if d == 0 else np.min([1, 1 / d])
             s_coins[id] = r
 
         return s_coins
-    '''
 
 
 

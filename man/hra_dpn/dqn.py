@@ -14,6 +14,7 @@ tf.set_random_seed(1)
 class DeepQNetwork:
     def __init__(
             self,
+            sess,
             n_actions,
             n_features,
             learning_rate=0.01,
@@ -24,7 +25,9 @@ class DeepQNetwork:
             batch_size=32,
             e_greedy_increment=None,
             output_graph=False,
+            scope = None
     ):
+        self.sess = sess
         self.n_actions = n_actions
         self.n_features = n_features
         self.lr = learning_rate
@@ -35,6 +38,7 @@ class DeepQNetwork:
         self.batch_size = batch_size
         self.epsilon_increment = e_greedy_increment
         self.epsilon = 0 if e_greedy_increment is not None else self.epsilon_max
+        self.scope = scope
 
         # total learning step
         self.learn_step_counter = 0
@@ -43,16 +47,9 @@ class DeepQNetwork:
         self.memory = np.zeros((self.memory_size, n_features * 2 + 2))
 
         # consist of [target_net, evaluate_net]
-        self._build_net()
+        with tf.variable_scope(scope):
+            self._build_net()
 
-        self.sess = tf.Session()
-
-        if output_graph:
-            # $ tensorboard --logdir=logs
-            # tf.train.SummaryWriter soon be deprecated, use following
-            tf.summary.FileWriter("logs/", self.sess.graph)
-
-        self.sess.run(tf.global_variables_initializer())
         self.cost_his = []
 
     def _build_net(self):
@@ -113,14 +110,15 @@ class DeepQNetwork:
     def choose_action(self, observation):
         # to have batch dimension when feed into tf placeholder
         observation = observation[np.newaxis, :]
+        # forward feed the observation and get q value for every actions
+        actions_value = self.sess.run(self.q_eval, feed_dict={self.s: observation})
+        actions_value = np.squeeze(actions_value)
 
         if np.random.uniform() < self.epsilon:
-            # forward feed the observation and get q value for every actions
-            actions_value = self.sess.run(self.q_eval, feed_dict={self.s: observation})
             action = np.argmax(actions_value)
         else:
             action = np.random.randint(0, self.n_actions)
-        return action
+        return action, actions_value[action]
 
     def _replace_target_params(self):
         t_params = tf.get_collection('target_net_params')
