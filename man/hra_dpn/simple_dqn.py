@@ -37,17 +37,15 @@ def run(render):
         s = env.reset()
 
         while True:
-            # fresh env
-            if render: env.render()
-
             # RL choose action based on observation
             a, q = net.choose_action(s)
 
 
             # RL take action and get next observation and reward
             s_, r, d, _ = env.step(a)
+            if render: env.render()
 
-            print('rewards: {0}'.format(r))
+            #print('rewards: {0}'.format(r))
 
             net.store_transition(s, a, r, s_)
 

@@ -10,6 +10,8 @@ Attr = config.Attr
 
 config.GAME_PARAMS.max_steps = 300
 
+config.GAME_PARAMS.fps = 20
+
 config.MAP_SIZE = Vector2(10, 10)
 
 config.GRID_SIZE = Vector2(10, 10)
@@ -19,6 +21,8 @@ config.NUM_BULLET = 0
 config.NUM_COIN = 5
 
 config.COIN_REVIVE = False
+
+config.PLAYER_INIT_RADIUS = (0.0, 0.0)
 
 
 COIN_POOL_SIZE = config.NUM_COIN * 2
@@ -50,15 +54,15 @@ class SerializerExtension():
 class DataExtension():
 
     COIN_INIT_POSITIONS = [Vector2(7, 4),
-                           Vector2(3, 9),
-                           Vector2(9, 9),
-                           Vector2(8, 0),
-                           Vector2(9, 5),
+                           Vector2(3, 7),
+                           Vector2(6, 6),
+                           Vector2(7, 2),
+                           Vector2(2, 8),
                            Vector2(3, 1),
-                           Vector2(8, 3),
-                           Vector2(0, 1),
                            Vector2(4, 3),
-                           Vector2(4, 1)]
+                           Vector2(3, 5),
+                           Vector2(7, 6),
+                           Vector2(2, 1)]
 
     #COIN_INIT_POSITIONS = [Vector2(*v) for v in np.random.randint(0, COIN_POOL_SIZE, COIN_POOL_SIZE*2).reshape(COIN_POOL_SIZE, -1)]
 
@@ -80,11 +84,11 @@ class DataExtension():
 class EnvExtension():
     def _reward(self):
         players = self.game.map.players
-        hits = np.array([player.step_hits for player in players])
-        coins = np.array([player.step_coins for player in players])
+        hits = np.array([player.step_hits for player in players], dtype=float)
+        coins = np.array([player.step_coins for player in players], dtype=float)
         r = coins - hits
-        r[r == 0] = -1
-        r = r / 10
+        r[r == 0] = -1 / 10
+        #r = r / 10
         return r[0] if len(r) == 1 else r
 
     '''
