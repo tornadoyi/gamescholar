@@ -79,7 +79,7 @@ class ACNet(object):
         return self.sess.run([self.push_a_params_op, self.push_c_params_op] + fetches, feed_dict)[2:]  # local grads applies to global net
 
     def pull(self):  # run by a local
-        self.sess.run([self.pull_a_params_op, self.pull_c_params_op])
+        self.sess.run([self.pull_a_params_op, self.pull_c_Wparams_op])
 
     def choose_action(self, s):  # run by a local
         prob_weights = self.sess.run(self.pi, feed_dict={self.S: s[np.newaxis, :]})
