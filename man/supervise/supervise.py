@@ -9,6 +9,7 @@ LR = 1e-2
 
 UPDATE_STEPS = 1
 
+CONTINUES = False
 
 class Network(object):
     def __init__(self, sess, n_states, n_action, optimizer, scope):
@@ -20,7 +21,11 @@ class Network(object):
 
         self.s = tf.placeholder(tf.float32, [None, n_states], name='x')  # input State
         self.y = tf.placeholder(tf.float32, [None, n_action], name='y')  # label
-        self.pi = self._build_net()
+
+        if CONTINUES:
+            self.pi = self._build_net_continues()
+        else:
+            self.pi = self._build_net_discrete()
 
         self.loss = tf.nn.l2_loss(self.y - self.pi)
 
@@ -33,7 +38,7 @@ class Network(object):
         self.train_op = optimizer.apply_gradients(zip(self.clip_grads, self.params))
 
 
-    def _build_net(self):
+    def _build_net_discrete(self):
         def normalized_columns_initializer(std=1.0):
             def _initializer(shape, dtype=None, partition_info=None):
                 out = np.random.randn(*shape).astype(np.float32)
@@ -43,16 +48,34 @@ class Network(object):
             return _initializer
 
         with tf.variable_scope('actor'):
-            #w_init = tf.random_normal_initializer(0., .1)
             w_init = normalized_columns_initializer(1.0)
 
             layer = self.s
-            layer = tf.layers.dense(layer, 256, tf.nn.relu, kernel_initializer=w_init, name='input')
+            layer = tf.layers.dense(layer, 256, tf.nn.tanh, kernel_initializer=w_init, name='input')
             layer = tf.layers.dense(layer, self.n_action, tf.nn.softmax, kernel_initializer=w_init, name='output')
 
+        return layer
+
+
+    def _build_net_continues(self):
+        def normalized_columns_initializer(std=1.0):
+            def _initializer(shape, dtype=None, partition_info=None):
+                out = np.random.randn(*shape).astype(np.float32)
+                out *= std / np.sqrt(np.square(out).sum(axis=0, keepdims=True))
+                return tf.constant(out)
+
+            return _initializer
+
+        with tf.variable_scope('actor'):
+            w_init = normalized_columns_initializer(1.0)
+
+            layer = self.s
+            layer = tf.layers.dense(layer, 256, tf.nn.tanh, kernel_initializer=w_init, name='input')
+            layer = tf.layers.dense(layer, self.n_action, None, kernel_initializer=w_init, name='output')
+
             # normalize
-            #norm = tf.sqrt(tf.reduce_sum(tf.square(layer)))
-            #layer = layer / tf.maximum(norm, 1e-6)
+            norm = tf.sqrt(tf.reduce_sum(tf.square(layer)))
+            layer = layer / tf.maximum(norm, 1e-6)
         return layer
 
 
@@ -75,7 +98,7 @@ def softmax(x):
 
 
 
-def get_label(s):
+def get_label_continues(s):
 
     player = s[0:2]
     npc = s[2:].reshape((-1, 2))
@@ -90,7 +113,7 @@ def get_label(s):
 
 
 def get_label_discrete(s):
-    direct = get_label(s)
+    direct = get_label_continues(s)
     label = np.zeros(4, dtype=float)
     if direct.x >= 0: label[1] = abs(direct.x)
     else: label[3] = abs(direct.x)
@@ -107,10 +130,15 @@ def get_label_discrete(s):
 
 
 def run(render=False):
+
     env = gym.make(config.config.GAME_NAME)
     _s = env.reset()
     N_S = _s.shape[0]  # env.observation_space.shape[0]
-    N_A = 4  # env.action_space.n
+
+    if CONTINUES:
+        N_A = 2  # env.action_space.n
+    else:
+        N_A = 4
 
 
     # create network
@@ -131,7 +159,10 @@ def run(render=False):
 
         while not done:
             a = net.choose_action(s)
-            y = get_label_discrete(s)
+
+            if CONTINUES: y = get_label_continues(s)
+            else: y = get_label_discrete(s)
+
 
             buffer_s.append(s)
             buffer_a.append(a)
