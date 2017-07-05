@@ -4,11 +4,12 @@ import numpy as np
 from gym import spaces
 from gymgame.engine import Vector2, extension
 from gymgame.tinyrpg import man
+from easydict import EasyDict as edict
 
 config = man.config
 Attr = config.Attr
 
-config.GAME_PARAMS.max_steps = 300
+config.GAME_PARAMS.max_steps = 30 #300
 
 config.GAME_PARAMS.fps = 20
 
@@ -26,6 +27,24 @@ config.PLAYER_INIT_RADIUS = (0.0, 0.0)
 
 
 COIN_POOL_SIZE = config.NUM_COIN * 2
+
+config.BASE_PLAYER = edict(
+    id = "player-{0}",
+    position = Vector2(0, 0),
+    direct = Vector2(0, 0),
+    speed = 20.0,
+    radius = 1,
+    max_hp = 1,
+)
+
+
+config.BASE_COIN = edict(
+    id = "coin-{0}",
+    position = Vector2(0, 0),
+    direct = Vector2(0, 0),
+    radius = 0.4,
+    max_hp = 1,
+)
 
 
 @extension(man.Serializer)
@@ -87,7 +106,7 @@ class EnvExtension():
         hits = np.array([player.step_hits for player in players], dtype=float)
         coins = np.array([player.step_coins for player in players], dtype=float)
         r = coins - hits
-        r[r == 0] = -1 / 10
+        r[r == 0] = -1 #/ 10
         #r = r / 10
         return r[0] if len(r) == 1 else r
 
