@@ -22,15 +22,13 @@ OUTPUT_GRAPH = True
 
 LOG_DIR = './log'
 
-N_WORKERS = 1
-
-MAX_GLOBAL_EP = 30000
+N_WORKERS = 8
 
 UPDATE_GLOBAL_ITER = 20
 
 GAMMA = 0.9
 
-ENTROPY_BETA = 0.001
+ENTROPY_BETA = 0.01
 
 LAMBDA = 1.0
 
@@ -53,7 +51,7 @@ def run(render=False):
     workers = []
     for i in range(N_WORKERS):
         i_name = 'pi_%i' % i  # worker name
-        env = gym.make(GAME_NAME)
+        env = gym.make(GAME_NAME).unwrapped
         pi = Policy(N_S, N_A, i_name)
         ac = ActorCritic(sess, pi, optimizer, global_pi=global_pi, entropy_beta=ENTROPY_BETA)
         worker = Worker(ac, env, GAMMA, LAMBDA)
@@ -71,7 +69,7 @@ def run(render=False):
         if i == 0:
             job = lambda: worker.test(render=False)
         else:
-            job = lambda: worker.train(update_nsteps=20)
+            job = lambda: worker.train(update_nsteps=UPDATE_GLOBAL_ITER)
 
         t = threading.Thread(target=job)
         t.start()
