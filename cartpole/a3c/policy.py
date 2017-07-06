@@ -37,10 +37,13 @@ class Policy(object):
 
 
         with tf.variable_scope(scope):
-            self.input = tf.nn.elu(linear(x, 256, "input", normalized_columns_initializer(0.01)))
-            self.logits = linear(self.input, ac_space, "action", normalized_columns_initializer(0.01))
+            self.l_a = tf.nn.elu(linear(x, 256, "la", normalized_columns_initializer(0.01)))
+            self.logits = linear(self.l_a, ac_space, "action", normalized_columns_initializer(0.01))
 
-            self.vf = tf.reshape(linear(x, 1, "value", normalized_columns_initializer(1.0)), [-1])
+            self.l_c = tf.nn.elu(linear(x, 128, "lc", normalized_columns_initializer(0.01)))
+            self.vf = tf.reshape(linear(self.l_c, 1, "value", normalized_columns_initializer(1.0)), [-1])
+
+
             self.sample = categorical_sample(self.logits, ac_space)[0, :]
             self.var_list = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, tf.get_variable_scope().name)
 
