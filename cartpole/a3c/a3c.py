@@ -15,7 +15,7 @@ from ac import ActorCritic
 from worker import Worker
 
 
-LR = 1e-4
+LR = 0.001  # 1e-4 in openai
 
 
 OUTPUT_GRAPH = True
