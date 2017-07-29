@@ -9,7 +9,7 @@ config.GAME_PARAMS.max_steps = 100
 
 config.NUM_BULLET = 0
 
-config.NUM_COIN = 10
+config.NUM_COIN = 5
 
 
 GAME_NAME = config.GAME_NAME

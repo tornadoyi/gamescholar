@@ -8,40 +8,51 @@ def discount(x, gamma):
     return scipy.signal.lfilter([1], [1, -gamma], x[::-1], axis=0)[::-1]
 
 
-class A3CWorker(object):
+class TrainWorker(object):
 
-    def __init__(self, sess, ac, env,
+    def __init__(self,
+                 ac, env,
+                 global_step, summary_writer,
                  gamma=0.9, lambda_=1.0, update_nsteps=20):
 
-        self.sess = sess
         self.ac = ac
         self.env = env
+        self.global_step = global_step
+        self.summary_writer = summary_writer
         self.gamma = gamma
         self.lambda_ = lambda_
         self.update_nsteps = update_nsteps
 
 
+        self.op_next_gloabl_step = self.global_step.assign_add(1)
+        self._create_summary()
 
-    def train(self):
-        sess = self.sess
-        total_step = 1
+
+
+    def __call__(self, sess):
+        self.sess = sess
+        steps = 1
         buffer_s, buffer_a, buffer_r, buffer_v = [], [], [], []
+
+        # pull model to local first
+        self.ac.pull(sess)
+
         while True:
 
-            s = self.env.reset()
+            s = self._reset()
             init_features = self.ac.get_initial_features(sess)
             features = init_features
 
             while True:
-                a, v, next_features = self.ac.choose_action(s, features)
-                s_, r, done, info = self.env.step(a)
+                a, v, next_features = self.ac.choose_action(sess, s, features)
+                s_, r, done, info = self._step(a)
 
                 buffer_s.append(s)
                 buffer_a.append(a)
                 buffer_r.append(r)
                 buffer_v.append(v)
 
-                if total_step % self.update_nsteps == 0 or done:  # update global and assign to local net
+                if steps % self.update_nsteps == 0 or done:  # update global and assign to local net
 
                     v_ = 0 if done else self.ac.predict_value(sess, s, next_features)
 
@@ -62,7 +73,7 @@ class A3CWorker(object):
                         self.ac.r: batch_r,
                     }
 
-                    self.ac.learn(sess, feed_dict)
+                    summary = self.ac.learn(sess, [self.ac.summary_op], feed_dict)[0]
 
                     # sync from gloabl ac
                     self.ac.pull(sess)
@@ -74,17 +85,59 @@ class A3CWorker(object):
                     # update init features
                     init_features = next_features
 
+                    # summary
+                    self.summary_writer.add_summary(tf.Summary.FromString(summary), sess.run(self.global_step))
+                    self.summary_writer.flush()
+
 
                 s = s_
                 features = next_features
+                steps += 1
 
-                total_step += 1
+                if done:
+                    self._end()
+                    break
 
-                if done: break
+
+
+    def _create_summary(self):
+        self.reward = tf.placeholder(tf.float32, shape=())
+        self.running_reward = tf.placeholder(tf.float32, shape=())
+        summary_ops = [
+            tf.summary.scalar("woker/reward", self.reward),
+            tf.summary.scalar("woker/running_reward", self.running_reward)
+        ]
+        self.summary_op = tf.summary.merge(summary_ops)
+
+
+    def _reset(self):
+        self.v_reward = 0
+        return self.env.reset()
+
+
+    def _step(self, a):
+        s_, r, done, info = self.env.step(a)
+        self.sess.run(self.op_next_gloabl_step)
+        self.v_reward += r
+        return s_, r, done, info
+
+
+    def _end(self):
+        if not hasattr(self, 'v_runing_reward'): self.v_runing_reward = self.v_reward
+        self.v_runing_reward = 0.99 * self.v_runing_reward + 0.01 * self.v_reward
+
+        summary, global_step = self.sess.run([self.summary_op, self.global_step], feed_dict = {
+            self.reward: self.v_reward,
+            self.running_reward: self.v_runing_reward,
+        })
+        self.summary_writer.add_summary(tf.Summary.FromString(summary), global_step)
+        self.summary_writer.flush()
 
 
 
-    def test(self, ender=False):
+
+
+    def test(self, sess, render=False):
         total_step = 0
         running_reward = 0.0
         epoch = 0
@@ -92,7 +145,7 @@ class A3CWorker(object):
 
         while True:
             # upgrade
-            self.ac.pull()
+            self.ac.pull(sess)
 
             # reset env
             s = self.env.reset()
@@ -100,7 +153,7 @@ class A3CWorker(object):
             while True:
 
                 # choose and do action
-                a, v = self.ac.choose_action(s)
+                a, v = self.ac.choose_action(sess, s)
 
                 # do
                 s, r, done, info = self.env.step(a)

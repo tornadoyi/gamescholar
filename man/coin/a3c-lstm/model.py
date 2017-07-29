@@ -27,7 +27,7 @@ def categorical_sample(logits, d):
 
 
 
-class A3CModel(object):
+class Model(object):
 
     def __init__(self,
                  input_shape,
@@ -52,6 +52,8 @@ class A3CModel(object):
         self.adv = tf.placeholder(tf.float32, [None], name="adv")
         self.r = tf.placeholder(tf.float32, [None], name="r")
 
+        self.batch_size = tf.to_float(tf.shape(self.s)[0])
+
 
         # create network
         self._create_network()
@@ -60,6 +62,7 @@ class A3CModel(object):
 
         # create loss
         self._create_loss()
+        self._create_summary()
 
 
 
@@ -68,18 +71,18 @@ class A3CModel(object):
         self.pi_loss = - tf.reduce_sum(tf.reduce_sum(log_prob_tf * self.a, [1]) * self.adv)
 
         self.vf_loss = 0.5 * tf.reduce_sum(tf.square(self.vf - self.r))
-        entropy = - tf.reduce_sum(self.probs * log_prob_tf)
+        self.entropy = - tf.reduce_sum(self.probs * log_prob_tf)
 
-        self.loss = self.pi_loss + 0.5 * self.vf_loss - entropy * self.entropy_beta
+        self.loss = self.pi_loss + 0.5 * self.vf_loss - self.entropy * self.entropy_beta
 
-        grads = tf.gradients(self.loss, self.var_list)
+        self.grads = tf.gradients(self.loss, self.var_list)
 
-        grads, _ = tf.clip_by_global_norm(grads, 40.0)
+        self.grads_norm, _ = tf.clip_by_global_norm(self.grads, 40.0)
 
         # copy weights from the parameter server to the local model
         self.sync = tf.group(*[v1.assign(v2) for v1, v2 in zip(self.var_list, self.global_vars)])
 
-        grads_and_vars = list(zip(grads, self.global_vars))
+        grads_and_vars = list(zip(self.grads_norm, self.global_vars))
 
         # each worker has a different set of adam optimizer parameters
         self.train_op = self.optimizer.apply_gradients(grads_and_vars)
@@ -88,13 +91,14 @@ class A3CModel(object):
 
     def _create_network(self):
 
-        s = tf.expand_dims(self.s, axis=1)
+        s = tf.expand_dims(self.s, axis=0)
 
-        lstm_cell = tf.contrib.rnn.BasicLSTMCell(256, state_is_tuple=True)
+        lstm_size = 256
+        lstm_cell = tf.contrib.rnn.BasicLSTMCell(lstm_size, state_is_tuple=True)
         self.state_in = lstm_cell.zero_state(1, tf.float32)
         lstm_outputs, self.state_out = tf.nn.dynamic_rnn(lstm_cell, s, initial_state=self.state_in, time_major=False)
 
-        x = tf.reshape(lstm_outputs, [-1, np.prod(lstm_outputs.get_shape().as_list())])
+        x = tf.reshape(lstm_outputs, [-1, lstm_size])
 
         self.logits = linear(x, self.action_size, "action", normalized_columns_initializer(0.01))
         self.vf = tf.reshape(linear(x, 1, "value", normalized_columns_initializer(1.0)), [-1])
@@ -107,6 +111,16 @@ class A3CModel(object):
 
 
 
+    def _create_summary(self):
+        summary_ops = [
+            tf.summary.scalar("model/pi_loss", self.pi_loss / self.batch_size),
+            tf.summary.scalar("model/value_loss", self.vf_loss / self.batch_size),
+            tf.summary.scalar("model/entropy", self.entropy / self.batch_size),
+            tf.summary.scalar("model/grad_norm", tf.global_norm(self.grads)),
+        ]
+        self.summary_op = tf.summary.merge(summary_ops)
+
+
 
     def choose_action(self, sess, s, features):
         return sess.run([self.sample, self.vf, self.state_out], {self.s: [s], self.state_in: features})
@@ -116,7 +130,7 @@ class A3CModel(object):
         return sess.run(self.vf, {self.s: [s], self.state_in: features})[0]
 
 
-    def learn(self, sess, feed_dict, fetches=[]):  # run by a local
+    def learn(self, sess, fetches=[], feed_dict={}):  # run by a local
         return sess.run([self.train_op] + fetches, feed_dict)[1:]  # local grads applies to global net
 
 

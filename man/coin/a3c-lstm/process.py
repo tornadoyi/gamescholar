@@ -11,7 +11,8 @@ def _get_arg_parser():
     parser.add_argument('--job-name', default="worker", help='worker or ps')
     parser.add_argument('--num-workers', default=1, type=int, help='Number of workers')
     parser.add_argument('--backend', default='cpu', type=str, help='cpu, gpu')
-    parser.add_argument('--worker-path', type=str, help='worker file path for load')
+    parser.add_argument('--log-dir', type=str, default="./log", help="Log directory path")
+    parser.add_argument('--worker-path', default='', type=str, help='worker file path for load')
     return parser
 
 
@@ -44,43 +45,29 @@ class Process(object):
     arg_parser = _get_arg_parser()
 
     def __init__(self):
-        args = self.arg_parser.parse_args()
-
-        self._index = args.index
-        self._job_name = args.job_name
-        self._num_workers = args.num_workers
-        self._backend = args.backend
-        self._worker_path = args.worker_path
-        self._cluster = _cluster_spec(self._num_workers, 1)
+        self._args = self.arg_parser.parse_args()
+        self._cluster = _cluster_spec(self._args.num_workers, 1)
 
         self._listen_shutdown()
 
 
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self):
+        args = self._args
 
-        if self._job_name == "worker":
-            server = tf.train.Server(self._cluster, job_name="worker", task_index=self._index)
-
-            worker_device = "/job:worker/task:{}/{}:*".format(self._index, self._backend)
-            config = tf.ConfigProto(device_filters=["/job:ps", worker_device])
-
-            sess = tf.Session(server.target, config=config)
+        server = tf.train.Server(self._cluster, job_name=args.job_name, task_index=args.index)
+        if args.job_name == "worker":
             worker = self._load_worker()
-            worker.run(sess, self._index, worker_device)
-
+            worker.run(server, args)
 
         else:
-            server = tf.train.Server(self._cluster, job_name="ps", task_index=self._index)
             while True:
                 time.sleep(1000)
 
 
-
-
     def _listen_shutdown(self):
         def shutdown(signal, frame):
-            print('Received signal %s: exiting', signal)
+            print('Received signal %s: exiting' % signal)
             sys.exit(128+signal)
 
         signal.signal(signal.SIGHUP, shutdown)
@@ -90,7 +77,8 @@ class Process(object):
 
 
     def _load_worker(self):
-        spec = importlib.util.spec_from_file_location("__importlib_module__", self._worker_path)
+        assert self._args.worker_path is not None
+        spec = importlib.util.spec_from_file_location("__importlib_module__", self._args.worker_path)
         m = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(m)
         return m
