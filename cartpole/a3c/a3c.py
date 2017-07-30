@@ -1,30 +1,19 @@
-"""
-flat-a3c launch entry
-A3C with a flattened 1D array state (with all info of all objects)
-"""
-
-import tensorflow as tf
-import threading
-import gym
 import os
-import shutil
-import time
+import tensorflow as tf
+import gym
+import logging
 
-from policy import Policy
-from ac import ActorCritic
-from worker import Worker
+from model import Model
+from worker import TrainWorker
+import config
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 LR = 0.001  # 1e-4 in openai
 
-
-OUTPUT_GRAPH = True
-
-LOG_DIR = './log'
-
-N_WORKERS = 8
-
-UPDATE_GLOBAL_ITER = 20
+UPDATE_STEPS = 20
 
 GAMMA = 0.9
 
@@ -32,54 +21,72 @@ ENTROPY_BETA = 0.01
 
 LAMBDA = 1.0
 
-GAME_NAME = 'CartPole-v0'
+GAME_NAME = 'CartPole-v0'#config.GAME_NAME #'CartPole-v0'
 
 
-def run(render=False):
-    env = gym.make(GAME_NAME)
+
+class FastSaver(tf.train.Saver):
+    def save(self, sess, save_path, global_step=None, latest_filename=None,
+             meta_graph_suffix="meta", write_meta_graph=True):
+        super(FastSaver, self).save(sess, save_path, global_step, latest_filename,
+                                    meta_graph_suffix, False)
+
+
+def run(server, args):
+    # device and config
+    worker_device = "/job:worker/task:{}/{}:*".format(args.index, args.backend)
+    config = tf.ConfigProto(device_filters=["/job:ps", worker_device])
+
+    # summary writer
+    # summary writer
+    summary_writer = tf.summary.FileWriter(os.path.join(args.log_dir, 'worker_{}'.format(args.index)))
+
+    # env
+    env = gym.make(GAME_NAME).unwrapped
+    env.reset()
     N_S, N_A = env.observation_space.shape, env.action_space.n
-    env.close()
 
-    sess = tf.InteractiveSession()
 
-    #optimizer = tf.train.RMSPropOptimizer(LR, name='RMSPropA')
+    # model
     optimizer = tf.train.AdamOptimizer(LR)
-
-    global_pi = Policy(N_S, N_A, 'global')
-
-    # Create train worker
-    workers = []
-    for i in range(N_WORKERS):
-        i_name = 'pi_%i' % i  # worker name
-        env = gym.make(GAME_NAME).unwrapped
-        pi = Policy(N_S, N_A, i_name)
-        ac = ActorCritic(sess, pi, optimizer, global_pi=global_pi, entropy_beta=ENTROPY_BETA)
-        worker = Worker(ac, env, GAMMA, LAMBDA)
-        workers.append(worker)
+    with tf.device(tf.train.replica_device_setter(1, worker_device=worker_device)):
+        with tf.variable_scope("global"):
+            g_model = Model(N_S, N_A, optimizer, ENTROPY_BETA)
+            global_step = tf.Variable(0.0, trainable=False, dtype=tf.float64)
+            variables_to_save = g_model.var_list + [global_step]
 
 
-    # init variables
-    sess.run(tf.global_variables_initializer())
+    with tf.device(worker_device):
+        with tf.variable_scope("local"):
+            model = Model(N_S, N_A, optimizer, ENTROPY_BETA, g_model.model_vars)
 
 
-    # train workers
-    worker_threads = []
-    for i in range(len(workers)):
-        worker = workers[i]
-        if i == 0:
-            job = lambda: worker.test(render=False)
-        else:
-            job = lambda: worker.train(update_nsteps=UPDATE_GLOBAL_ITER)
 
-        t = threading.Thread(target=job)
-        t.start()
-        worker_threads.append(t)
+    # worker
+    worker = TrainWorker(model, env, global_step, summary_writer, GAMMA, LAMBDA, UPDATE_STEPS)
+
+    # saver
+    saver = FastSaver(variables_to_save)
+
+    # initializer
+    init_all_op = tf.global_variables_initializer()
+    def init_fn(ses):
+        logger.info("Initializing all parameters.")
+        ses.run(init_all_op)
+
+    sv = tf.train.Supervisor(is_chief=(args.index == 0),
+                             logdir=args.log_dir,
+                             saver=saver,
+                             summary_op=None,
+                             init_op=tf.variables_initializer(variables_to_save),
+                             init_fn=init_fn,
+                             summary_writer=summary_writer,
+                             ready_op=tf.report_uninitialized_variables(variables_to_save),
+                             global_step=global_step,
+                             save_model_secs=30,
+                             save_summaries_secs=30)
 
 
-    # wait
-    COORD = tf.train.Coordinator()
-    COORD.join(worker_threads)
-
-
-if __name__ == '__main__':
-    run()
+    with sv.managed_session(server.target, config=config) as sess, sess.as_default():
+        logger.info("Starting training at step=%d", sess.run(global_step))
+        worker(sess)

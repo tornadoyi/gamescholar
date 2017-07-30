@@ -8,34 +8,53 @@ def discount(x, gamma):
     return scipy.signal.lfilter([1], [1, -gamma], x[::-1], axis=0)[::-1]
 
 
-class Worker(object):
+class TrainWorker(object):
 
-    def __init__(self, ac, env, gamma=0.9, lambda_=1.0):
+    def __init__(self,
+                 ac, env,
+                 global_step, summary_writer,
+                 gamma=0.9, lambda_=1.0, update_nsteps=20):
+
+        self.ac = ac
         self.env = env
+        self.global_step = global_step
+        self.summary_writer = summary_writer
         self.gamma = gamma
         self.lambda_ = lambda_
-        self.ac = ac
+        self.update_nsteps = update_nsteps
 
 
-    def train(self, update_nsteps=20, should_stop=None):
-        total_step = 1
+        self.op_next_gloabl_step = self.global_step.assign_add(1)
+        self._create_summary()
+
+
+
+    def __call__(self, sess):
+        self.sess = sess
+        steps = 1
         buffer_s, buffer_a, buffer_r, buffer_v = [], [], [], []
-        while (should_stop is None) or (not should_stop()):
 
-            s = self.env.reset()
+        # pull model to local first
+        self.ac.pull(sess)
+
+        while True:
+
+            s = self._reset()
+            init_features = self.ac.get_initial_features(sess)
+            features = init_features
 
             while True:
-                a, v = self.ac.choose_action(s)
-                s_, r, done, info = self.env.step(np.argmax(a))
+                a, v, next_features = self.ac.choose_action(sess, s, features)
+                s_, r, done, info = self._step(a)
 
                 buffer_s.append(s)
                 buffer_a.append(a)
                 buffer_r.append(r)
                 buffer_v.append(v)
 
-                if total_step % update_nsteps == 0 or done:  # update global and assign to local net
+                if steps % self.update_nsteps == 0 or done:  # update global and assign to local net
 
-                    v_ = 0 if done else self.ac.predict_value(s)
+                    v_ = 0 if done else self.ac.predict_value(sess, s, next_features)
 
                     rewards = np.asarray(buffer_r)
                     vpred_t = np.asarray(buffer_v + [v_])
@@ -54,31 +73,80 @@ class Worker(object):
                         self.ac.r: batch_r,
                     }
 
-                    self.ac.learn(feed_dict)
+                    summary = self.ac.learn(sess, [self.ac.summary_op], feed_dict)[0]
 
                     # sync from gloabl ac
-                    self.ac.pull()
+                    self.ac.pull(sess)
 
                     # clear buffer
                     buffer_s, buffer_a, buffer_r, buffer_v = [], [], [], []
 
 
+                    # update init features
+                    init_features = next_features
+
+                    # summary
+                    self.summary_writer.add_summary(tf.Summary.FromString(summary), sess.run(self.global_step))
+                    self.summary_writer.flush()
+
+
                 s = s_
-                total_step += 1
+                features = next_features
+                steps += 1
 
-                if done: break
+                if done:
+                    self._end()
+                    break
 
 
 
-    def test(self, should_stop=None, render=False):
+    def _create_summary(self):
+        self.reward = tf.placeholder(tf.float32, shape=())
+        self.running_reward = tf.placeholder(tf.float32, shape=())
+        summary_ops = [
+            tf.summary.scalar("woker/reward", self.reward),
+            tf.summary.scalar("woker/running_reward", self.running_reward)
+        ]
+        self.summary_op = tf.summary.merge(summary_ops)
+
+
+    def _reset(self):
+        self.v_reward = 0
+        return self.env.reset()
+
+
+    def _step(self, a):
+        a = np.argmax(a)
+        s_, r, done, info = self.env.step(a)
+        self.sess.run(self.op_next_gloabl_step)
+        self.v_reward += r
+        return s_, r, done, info
+
+
+    def _end(self):
+        if not hasattr(self, 'v_runing_reward'): self.v_runing_reward = self.v_reward
+        self.v_runing_reward = 0.99 * self.v_runing_reward + 0.01 * self.v_reward
+
+        summary, global_step = self.sess.run([self.summary_op, self.global_step], feed_dict = {
+            self.reward: self.v_reward,
+            self.running_reward: self.v_runing_reward,
+        })
+        self.summary_writer.add_summary(tf.Summary.FromString(summary), global_step)
+        self.summary_writer.flush()
+
+
+
+
+
+    def test(self, sess, render=False):
         total_step = 0
         running_reward = 0.0
         epoch = 0
         epoch_reward = 0
 
-        while (should_stop is None) or (not should_stop()):
+        while True:
             # upgrade
-            self.ac.pull()
+            self.ac.pull(sess)
 
             # reset env
             s = self.env.reset()
@@ -86,10 +154,10 @@ class Worker(object):
             while True:
 
                 # choose and do action
-                a, v = self.ac.choose_action(s)
+                a, v = self.ac.choose_action(sess, s)
 
                 # do
-                s, r, done, info = self.env.step(np.argmax(a))
+                s, r, done, info = self.env.step(a)
                 epoch_reward += r
 
                 # render
@@ -107,7 +175,6 @@ class Worker(object):
 
                     epoch_reward = 0
                     break
-
 
 
 
