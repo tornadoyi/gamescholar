@@ -28,11 +28,10 @@ class SerializerExtension():
 
 
     def _deserialize_action(self, data):
-        # continues
-        if len(data) == 4:
-            direct = SerializerExtension.DIRECTS[np.argmax(data)]
-        else:
-            direct = Vector2(*data)
+
+        if np.ndim(data) == 0: direct = SerializerExtension.DIRECTS[data]
+        elif len(data) == len(SerializerExtension.DIRECTS): direct = SerializerExtension.DIRECTS[np.argmax(data)]
+        else: direct = Vector2(*data)
 
         actions = [('player-0', config.Action.move_toward, direct, None)]
         return actions

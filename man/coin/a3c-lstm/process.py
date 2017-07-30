@@ -1,20 +1,8 @@
 import tensorflow as tf
-import argparse
 import sys, signal
 import time
-import os
 import importlib.util
-
-def _get_arg_parser():
-    parser = argparse.ArgumentParser(description=None)
-    parser.add_argument('--index', default=0, type=int, help='Task index')
-    parser.add_argument('--job-name', default="worker", help='worker or ps')
-    parser.add_argument('--num-workers', default=1, type=int, help='Number of workers')
-    parser.add_argument('--backend', default='cpu', type=str, help='cpu, gpu')
-    parser.add_argument('--log-dir', type=str, default="./log", help="Log directory path")
-    parser.add_argument('--worker-path', default='', type=str, help='worker file path for load')
-    return parser
-
+import option
 
 
 def _cluster_spec(num_workers, num_ps):
@@ -42,10 +30,8 @@ More tensorflow setup for data parallelism
 
 class Process(object):
 
-    arg_parser = _get_arg_parser()
-
     def __init__(self):
-        self._args = self.arg_parser.parse_args()
+        self._args = option.args
         self._cluster = _cluster_spec(self._args.num_workers, 1)
 
         self._listen_shutdown()

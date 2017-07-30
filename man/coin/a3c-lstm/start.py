@@ -1,16 +1,7 @@
-import argparse
 import os
 import sys
-import shutil
-from multiprocessing import cpu_count
-
-
-parser = argparse.ArgumentParser(description="Run commands")
-parser.add_argument('--num-workers', default=cpu_count(), type=int, help="Number of workers")
-parser.add_argument('--backend', default='cpu', type=str, help='cpu, gpu')
-parser.add_argument('--worker-path', type=str, help='worker file path for load')
-parser.add_argument('--log-dir', type=str, default="./log", help="Log directory path")
-parser.add_argument('--session-name', type=str, default="project", help="session name")
+import copy
+import option
 
 
 
@@ -40,7 +31,7 @@ def cmd_execute_python(session, window, file, arg_dict):
 
 def main():
     # parse args
-    args = parser.parse_args()
+    args, arg_dict = option.args, option.arg_dict
     session_name = args.session_name
     
 
@@ -55,27 +46,21 @@ def main():
     cmds.append(cmd_new_session(session_name))
 
     # ps
+    arg = copy.deepcopy(arg_dict)
+    arg['--job-name'] = 'ps'
     cmds.append(cmd_new_window(session_name, 'ps'))
-    cmds.append(cmd_execute_python(session_name, 'ps', 'process.py',
-                                   {'--index': 0,
-                                    '--job-name': 'ps',
-                                    '--num-workers': args.num_workers,
-                                    }))
+    cmds.append(cmd_execute_python(session_name, 'ps', 'process.py', arg))
 
 
     # workers
     for i in range(args.num_workers):
         win = 'worker_{}'.format(i)
+        arg = copy.deepcopy(arg_dict)
+        arg['--index'] = i
+        arg['--job-name'] = 'worker'
+
         cmds.append(cmd_new_window(session_name, win))
-        cmds.append(cmd_execute_python(session_name, win, 'process.py',
-                                       {'--index': i,
-                                        '--job-name': 'worker',
-                                        '--num-workers': args.num_workers,
-                                        '--backend': args.backend,
-                                        '--log-dir': args.log_dir,
-                                        '--worker-path': args.worker_path,
-                                        }))
-        if i == 0: cmds.append('sleep 3s')
+        cmds.append(cmd_execute_python(session_name, win, 'process.py', arg))
 
 
     # tensorboard

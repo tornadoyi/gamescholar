@@ -21,7 +21,7 @@ ENTROPY_BETA = 0.01
 
 LAMBDA = 1.0
 
-GAME_NAME = 'CartPole-v0'#config.GAME_NAME #'CartPole-v0'
+GAME_NAME = config.GAME_NAME
 
 
 
