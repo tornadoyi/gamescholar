@@ -4,7 +4,7 @@ import gym
 import logging
 
 from model import Model
-from worker import TrainWorker
+from worker import TrainWorker, PlayWorker
 import config
 
 logger = logging.getLogger(__name__)
@@ -63,10 +63,13 @@ def run(server, args):
 
 
     # worker
-    worker = TrainWorker(model, env, global_step, summary_writer, GAMMA, LAMBDA, UPDATE_STEPS)
+    if args.mode == 'play':
+        worker = PlayWorker(model, env, global_step, summary_writer, args.render)
+    else:
+        worker = TrainWorker(model, env, global_step, summary_writer, args.render, GAMMA, LAMBDA, UPDATE_STEPS)
 
     # saver
-    saver = FastSaver(variables_to_save)
+    saver = FastSaver(variables_to_save) if args.auto_save else None
 
     # initializer
     init_all_op = tf.global_variables_initializer()
@@ -74,7 +77,7 @@ def run(server, args):
         logger.info("Initializing all parameters.")
         ses.run(init_all_op)
 
-    sv = tf.train.Supervisor(is_chief=(args.index == 0),
+    sv = tf.train.Supervisor(is_chief=(args.index == 0 and args.mode != 'play'),
                              logdir=args.log_dir,
                              saver=saver,
                              summary_op=None,
@@ -83,8 +86,8 @@ def run(server, args):
                              summary_writer=summary_writer,
                              ready_op=tf.report_uninitialized_variables(variables_to_save),
                              global_step=global_step,
-                             save_model_secs=30,
-                             save_summaries_secs=30)
+                             save_model_secs=args.save_model_secs,
+                             save_summaries_secs=args.save_summaries_secs)
 
 
     with sv.managed_session(server.target, config=config) as sess, sess.as_default():

@@ -2,37 +2,14 @@ import tensorflow as tf
 import sys, signal
 import time
 import importlib.util
-import option
-
-
-def _cluster_spec(num_workers, num_ps):
-    """
-More tensorflow setup for data parallelism
-"""
-    cluster = {}
-    port = 12222
-
-    all_ps = []
-    host = '127.0.0.1'
-    for _ in range(num_ps):
-        all_ps.append('{}:{}'.format(host, port))
-        port += 1
-    cluster['ps'] = all_ps
-
-    all_workers = []
-    for _ in range(num_workers):
-        all_workers.append('{}:{}'.format(host, port))
-        port += 1
-    cluster['worker'] = all_workers
-    return cluster
 
 
 
 class Process(object):
 
-    def __init__(self):
-        self._args = option.args
-        self._cluster = _cluster_spec(self._args.num_workers, 1)
+    def __init__(self, args, cluster):
+        self._args = args
+        self._cluster = cluster
 
         self._listen_shutdown()
 
@@ -72,7 +49,8 @@ class Process(object):
 
 
 def main(_):
-    process = Process()
+    import option
+    process = Process(option.args, option.cluster)
     process()
 
 

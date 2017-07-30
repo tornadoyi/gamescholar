@@ -13,6 +13,7 @@ class TrainWorker(object):
     def __init__(self,
                  ac, env,
                  global_step, summary_writer,
+                 render = False,
                  gamma=0.9, lambda_=1.0, update_nsteps=20):
 
         self.ac = ac
@@ -22,7 +23,7 @@ class TrainWorker(object):
         self.gamma = gamma
         self.lambda_ = lambda_
         self.update_nsteps = update_nsteps
-
+        self.render = render
 
         self.op_next_gloabl_step = self.global_step.assign_add(1)
         self._create_summary()
@@ -46,6 +47,7 @@ class TrainWorker(object):
             while True:
                 a, v, next_features = self.ac.choose_action(sess, s, features)
                 s_, r, done, info = self._step(a)
+                if self.render: self.env.render()
 
                 buffer_s.append(s)
                 buffer_a.append(a)
@@ -137,43 +139,75 @@ class TrainWorker(object):
 
 
 
-    def test(self, sess, render=False):
-        total_step = 0
-        running_reward = 0.0
-        epoch = 0
-        epoch_reward = 0
+
+
+class PlayWorker(object):
+    def __init__(self,
+                 ac, env,
+                 global_step, summary_writer,
+                 render=False,
+                 ):
+        self.ac = ac
+        self.env = env
+        self.global_step = global_step
+        self.summary_writer = summary_writer
+        self.render = render
+
+        self._create_summary()
+
+
+    def __call__(self, sess):
+        self.sess = sess
 
         while True:
-            # upgrade
+            # pull model to local every game round
             self.ac.pull(sess)
 
-            # reset env
-            s = self.env.reset()
+            s = self._reset()
+            init_features = self.ac.get_initial_features(sess)
+            features = init_features
 
             while True:
+                a, v, next_features = self.ac.choose_action(sess, s, features)
+                s_, r, done, info = self._step(a)
+                if self.render: self.env.render()
 
-                # choose and do action
-                a, v = self.ac.choose_action(sess, s)
+                s = s_
+                features = next_features
 
-                # do
-                s, r, done, info = self.env.step(a)
-                epoch_reward += r
-
-                # render
-                if render: self.env.render()
-
-                # step + 1
-                total_step += 1
-
-                # check terminal
                 if done:
-                    epoch += 1
-                    running_reward = running_reward * 0.99 + 0.01 * epoch_reward
-
-                    print('epoch: {0} reward: {1}  runing reward: {2}'.format(epoch, epoch_reward, running_reward))
-
-                    epoch_reward = 0
+                    self._end()
                     break
 
 
+    def _create_summary(self):
+        self.reward = tf.placeholder(tf.float32, shape=())
+        self.running_reward = tf.placeholder(tf.float32, shape=())
+        summary_ops = [
+            tf.summary.scalar("play/reward", self.reward),
+            tf.summary.scalar("play/running_reward", self.running_reward)
+        ]
+        self.summary_op = tf.summary.merge(summary_ops)
 
+
+    def _reset(self):
+        self.v_reward = 0
+        return self.env.reset()
+
+
+    def _step(self, a):
+        s_, r, done, info = self.env.step(a)
+        self.v_reward += r
+        return s_, r, done, info
+
+
+    def _end(self):
+        if not hasattr(self, 'v_runing_reward'): self.v_runing_reward = self.v_reward
+        self.v_runing_reward = 0.99 * self.v_runing_reward + 0.01 * self.v_reward
+
+        summary, global_step = self.sess.run([self.summary_op, self.global_step], feed_dict = {
+            self.reward: self.v_reward,
+            self.running_reward: self.v_runing_reward,
+        })
+        self.summary_writer.add_summary(tf.Summary.FromString(summary), global_step)
+        self.summary_writer.flush()
