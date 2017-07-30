@@ -45,8 +45,8 @@ def main():
     
 
     # recreate log dir
-    if os.path.exists(args.log_dir): shutil.rmtree(args.log_dir)
-    os.mkdir(args.log_dir)
+    if not os.path.exists(args.log_dir): os.mkdir(args.log_dir)
+
 
 
     # create session and kill olds
@@ -75,6 +75,7 @@ def main():
                                         '--log-dir': args.log_dir,
                                         '--worker-path': args.worker_path,
                                         }))
+        if i == 0: cmds.append('sleep 3s')
 
 
     # tensorboard

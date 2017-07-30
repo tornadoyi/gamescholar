@@ -116,6 +116,7 @@ class TrainWorker(object):
 
 
     def _step(self, a):
+        a = np.argmax(a)
         s_, r, done, info = self.env.step(a)
         self.sess.run(self.op_next_gloabl_step)
         self.v_reward += r

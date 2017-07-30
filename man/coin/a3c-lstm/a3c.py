@@ -21,7 +21,7 @@ ENTROPY_BETA = 0.01
 
 LAMBDA = 1.0
 
-GAME_NAME = config.GAME_NAME
+GAME_NAME = 'CartPole-v0'#config.GAME_NAME #'CartPole-v0'
 
 
 
@@ -44,7 +44,7 @@ def run(server, args):
     # env
     env = gym.make(GAME_NAME).unwrapped
     env.reset()
-    N_S, N_A = env.observation_space.shape, 4
+    N_S, N_A = env.observation_space.shape, env.action_space.n
 
 
     # model
@@ -53,13 +53,13 @@ def run(server, args):
         with tf.variable_scope("global"):
             g_model = Model(N_S, N_A, optimizer, ENTROPY_BETA)
             global_step = tf.Variable(0.0, trainable=False, dtype=tf.float64)
-            op_next_step = global_step.assign_add(1)
             variables_to_save = g_model.var_list + [global_step]
 
 
     with tf.device(worker_device):
         with tf.variable_scope("local"):
-            model = Model(N_S, N_A, optimizer, ENTROPY_BETA, g_model.var_list)
+            model = Model(N_S, N_A, optimizer, ENTROPY_BETA, g_model.model_vars)
+
 
 
     # worker

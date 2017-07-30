@@ -34,7 +34,7 @@ class Model(object):
                  action_size,
                  optimizer,
                  entropy_beta=0.01,
-                 global_vars = None,
+                 global_model_vars = None,
                  ):
 
 
@@ -42,8 +42,7 @@ class Model(object):
         self.action_size = action_size
         self.optimizer = optimizer
         self.entropy_beta = entropy_beta
-        self.global_vars = global_vars
-
+        self.global_model_vars = global_model_vars
 
 
         # s should be (batch, features)
@@ -54,16 +53,45 @@ class Model(object):
 
         self.batch_size = tf.to_float(tf.shape(self.s)[0])
 
-
         # create network
         self._create_network()
-        if global_vars is None: return
-
 
         # create loss
         self._create_loss()
+
+        # create summary
         self._create_summary()
 
+        # collect var list
+        self.var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, tf.get_variable_scope().name)
+
+
+    def _create_network(self):
+
+        '''
+        s = tf.expand_dims(self.s, axis=0)
+
+        lstm_size = 256
+        lstm_cell = tf.contrib.rnn.BasicLSTMCell(lstm_size, state_is_tuple=True)
+        self.state_in = lstm_cell.zero_state(1, tf.float32)
+        lstm_outputs, self.state_out = tf.nn.dynamic_rnn(lstm_cell, s, initial_state=self.state_in, time_major=False)
+
+        x = tf.reshape(lstm_outputs, [-1, lstm_size])
+        '''
+
+        self.state_in = self.state_out = tf.constant(0.0)
+        x1 = linear(self.s, 256, "pi_input", normalized_columns_initializer(0.01))
+        x2 = linear(self.s, 128, "vf_input", normalized_columns_initializer(0.01))
+
+
+        self.logits = linear(x1, self.action_size, "action", normalized_columns_initializer(0.01))
+        self.vf = tf.reshape(linear(x2, 1, "value", normalized_columns_initializer(1.0)), [-1])
+
+        self.sample = categorical_sample(self.logits, self.action_size)[0, :]
+        self.probs = tf.nn.softmax(self.logits)
+
+
+        self.model_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, tf.get_variable_scope().name)
 
 
     def _create_loss(self):
@@ -75,40 +103,16 @@ class Model(object):
 
         self.loss = self.pi_loss + 0.5 * self.vf_loss - self.entropy * self.entropy_beta
 
-        self.grads = tf.gradients(self.loss, self.var_list)
+        self.grads = tf.gradients(self.loss, self.model_vars)
 
         self.grads_norm, _ = tf.clip_by_global_norm(self.grads, 40.0)
 
-        # copy weights from the parameter server to the local model
-        self.sync = tf.group(*[v1.assign(v2) for v1, v2 in zip(self.var_list, self.global_vars)])
+        global_model_vars = self.global_model_vars or self.model_vars
+        self.sync = tf.group(*[v1.assign(v2) for v1, v2 in zip(self.model_vars, global_model_vars)])
 
-        grads_and_vars = list(zip(self.grads_norm, self.global_vars))
+        grads_and_vars = list(zip(self.grads_norm, global_model_vars))
 
-        # each worker has a different set of adam optimizer parameters
         self.train_op = self.optimizer.apply_gradients(grads_and_vars)
-
-
-
-    def _create_network(self):
-
-        s = tf.expand_dims(self.s, axis=0)
-
-        lstm_size = 256
-        lstm_cell = tf.contrib.rnn.BasicLSTMCell(lstm_size, state_is_tuple=True)
-        self.state_in = lstm_cell.zero_state(1, tf.float32)
-        lstm_outputs, self.state_out = tf.nn.dynamic_rnn(lstm_cell, s, initial_state=self.state_in, time_major=False)
-
-        x = tf.reshape(lstm_outputs, [-1, lstm_size])
-
-        self.logits = linear(x, self.action_size, "action", normalized_columns_initializer(0.01))
-        self.vf = tf.reshape(linear(x, 1, "value", normalized_columns_initializer(1.0)), [-1])
-
-        self.sample = categorical_sample(self.logits, self.action_size)[0, :]
-        self.probs = tf.nn.softmax(self.logits)
-
-
-        self.var_list = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, tf.get_variable_scope().name)
-
 
 
     def _create_summary(self):
@@ -122,11 +126,12 @@ class Model(object):
 
 
 
+
     def choose_action(self, sess, s, features):
         return sess.run([self.sample, self.vf, self.state_out], {self.s: [s], self.state_in: features})
 
 
-    def predict_value(self, sess, s, *features):
+    def predict_value(self, sess, s, features):
         return sess.run(self.vf, {self.s: [s], self.state_in: features})[0]
 
 
