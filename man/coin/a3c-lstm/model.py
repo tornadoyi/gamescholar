@@ -80,8 +80,8 @@ class Model(object):
         '''
 
         self.state_in = self.state_out = tf.constant(0.0)
-        x1 = linear(self.s, 256, "pi_input", normalized_columns_initializer(0.01))
-        x2 = linear(self.s, 128, "vf_input", normalized_columns_initializer(0.01))
+        x1 = tf.nn.relu(linear(self.s, 256, "pi_input", normalized_columns_initializer(0.01)))
+        x2 = tf.nn.relu(linear(self.s, 128, "vf_input", normalized_columns_initializer(0.01)))
 
 
         self.logits = linear(x1, self.action_size, "action", normalized_columns_initializer(0.01))
