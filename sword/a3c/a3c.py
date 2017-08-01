@@ -5,7 +5,7 @@ This is the tensorflow worker to run a3c, core code is run() funtion
 import os
 import tensorflow as tf
 import gym
-import gym_seasun.gym_sw1
+import gymgame
 import logging
 import option
 import config as game_config
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-GAME_NAME = "SW1-1-VS-N-v0"
+GAME_NAME = game_config.GAME_NAME
 
 LR = 0.001  # 1e-4 in openai
 UPDATE_STEPS = 20
@@ -37,10 +37,9 @@ def run(server, args):
 
     # env
     env = gym.make(GAME_NAME)
-    N_S = (80 * 80 * 2, )#env.observation_space.shape
+    N_S = env.observation_space.shape
     N_A = env.action_space.n
     client_ip_port = option.game_client_ip_ports[args.index]
-    env.env.init_params(client_ip_port[0], client_ip_port[1], game_config.MAP_ID, args.render)
 
     # model
     optimizer = tf.train.AdamOptimizer(LR)

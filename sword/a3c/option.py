@@ -58,9 +58,3 @@ def create_hosts(ip, port, num):
 cluster = {'ps': create_hosts('127.0.0.1', PS_PORT, 1),
            'worker': create_hosts('127.0.0.1', WORKER_PORT, args.num_workers + EXTRA_WORKER_COUNT)}
 
-
-# game client connection, support multiple clients for A3C
-game_client_ip_ports = [
-    ('192.168.145.9', 5000),
-    ('192.168.145.9', 5001),
-]
