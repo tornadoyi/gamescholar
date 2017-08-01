@@ -97,9 +97,32 @@ config.BASE_NPC = edict(
 class EnvExtension():
     def _init_action_space(self): return spaces.Discrete(9)
 
-    def _reward(self):
+    def _reset(self):
+        s = super(EnvironmentGym, self)._reset()
 
-        return 0
+        map = self.game.map
+        player, npcs = map.players[0], map.npcs
+
+        self.max_hp = max([player.attribute.hp] + [o.attribute.hp for o in npcs])
+        self.pre_player_hp = player.attribute.hp
+        self.pre_npc_hp = sum([o.attribute.hp for o in npcs])
+
+        return s
+
+    def _reward(self):
+        map = self.game.map
+        player, npcs = map.players[0], map.npcs
+
+        if len(npcs) == 0: return 1
+
+        sub_player_hp = player.attribute.hp - self.pre_player_hp
+        npc_hp = sum([o.attribute.hp for o in npcs])
+        sub_npc_hp = npc_hp - self.pre_npc_hp
+
+        self.pre_player_hp = player.attribute.hp
+        self.pre_npc_hp = npc_hp
+
+        return (sub_player_hp - sub_npc_hp) / self.max_hp
 
 
 @extension(Serializer)
