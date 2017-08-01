@@ -13,6 +13,8 @@ config.MAP_SIZE = Vector2(10, 10)
 
 config.GAME_PARAMS.fps = 24
 
+config.GAME_PARAMS.max_steps = 300
+
 config.NUM_PLAYERS = 1
 
 config.NUM_NPC = 1
@@ -22,7 +24,6 @@ config.PLAYER_INIT_RADIUS = (0.0, 1.0)
 config.NPC_INIT_RADIUS = (0.0, 1.0)
 
 config.NPC_SKILL_COUNT = 1
-
 
 config.SKILL_DICT = {
     'normal_attack' : Skill(
@@ -60,9 +61,9 @@ config.SKILL_DICT = {
     ),
 }
 
-config.PLAYER_SKILL_DICT = {'normal_shoot': config.SKILL_DICT['normal_shoot']}
+config.PLAYER_SKILL_LIST = [config.SKILL_DICT['normal_shoot']]
 
-config.NPC_SKILL_DICT = {'normal_attack': config.SKILL_DICT['normal_attack']}
+config.NPC_SKILL_LIST = [config.SKILL_DICT['normal_attack']]
 
 
 config.BASE_PLAYER = edict(
@@ -73,7 +74,7 @@ config.BASE_PLAYER = edict(
     radius = 0.5,
     max_hp = 100.0,
     camp = config.Camp[0],
-    skills=list(config.PLAYER_SKILL_DICT.values())
+    skills=config.PLAYER_SKILL_LIST
 )
 
 
@@ -85,7 +86,7 @@ config.BASE_NPC = edict(
     radius = 0.5,
     max_hp = 100.0,
     camp = config.Camp[1],
-    skills=[]
+    skills=config.NPC_SKILL_LIST
 )
 
 
@@ -94,22 +95,38 @@ config.BASE_NPC = edict(
 
 @extension(EnvironmentGym)
 class EnvExtension():
-    def _init_action_space(self): return spaces.Discrete(4)
+    def _init_action_space(self): return spaces.Discrete(9)
+
+    def _reward(self):
+
+        return 0
 
 
 @extension(Serializer)
 class SerializerExtension():
 
-    DIRECTS = [Vector2.up, Vector2.right, Vector2.down, Vector2.left]
+    DIRECTS = [Vector2.up,
+               Vector2.up + Vector2.right,
+               Vector2.right,
+               Vector2.right + Vector2.down,
+               Vector2.down,
+               Vector2.down + Vector2.left,
+               Vector2.left,
+               Vector2.left + Vector2.up,
+               ]
 
 
     def _deserialize_action(self, data):
+        index, target = data
+        if index < 8:
+            direct = SerializerExtension.DIRECTS[index]
+            actions = [('player-0', config.Action.move_toward, direct, None)]
 
-        if np.ndim(data) == 0: direct = SerializerExtension.DIRECTS[data]
-        elif len(data) == len(SerializerExtension.DIRECTS): direct = SerializerExtension.DIRECTS[np.argmax(data)]
-        else: direct = Vector2(*data)
+        else:
+            skill_index = index - 8
+            skill_id = config.BASE_PLAYER.skills[skill_index].id
+            actions = [('player-0', config.Action.cast_skill, skill_id, target, None)]
 
-        actions = [('player-0', config.Action.move_toward, direct, None)]
         return actions
 
 

@@ -201,7 +201,9 @@ class PlayAgent(object):
 
 
     def _step(self, a):
-        s_, r, done, info = self.env.step(a)
+        a = np.argmax(a)
+        target = self.env.game.map.find('npc-0')
+        s_, r, done, info = self.env.step((a, target))
         self.v_reward += r
         return s_, r, done, info
 
