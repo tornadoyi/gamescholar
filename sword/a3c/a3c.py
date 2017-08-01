@@ -36,10 +36,9 @@ def run(server, args):
     summary_writer = tf.summary.FileWriter(os.path.join(args.log_dir, 'worker_{}'.format(args.index)))
 
     # env
-    env = gym.make(GAME_NAME)
+    env = gym.make(GAME_NAME).unwrapped
     N_S = env.observation_space.shape
     N_A = env.action_space.n
-    client_ip_port = option.game_client_ip_ports[args.index]
 
     # model
     optimizer = tf.train.AdamOptimizer(LR)
