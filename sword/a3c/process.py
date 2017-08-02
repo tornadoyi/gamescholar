@@ -18,7 +18,14 @@ class Process(object):
     def __call__(self):
         args = self._args
 
-        server = tf.train.Server(self._cluster, job_name=args.job_name, task_index=args.index)
+        # config
+        config = tf.ConfigProto(
+            allow_soft_placement=True,
+            log_device_placement=False,
+            gpu_options=tf.GPUOptions(allow_growth=True)
+        )
+
+        server = tf.train.Server(self._cluster, job_name=args.job_name, task_index=args.index, config=config)
         if args.job_name == "worker":
             worker = self._load_worker()
             worker.run(server, args)
