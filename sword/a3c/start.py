@@ -19,7 +19,7 @@ def cmd_new_session(session, window=None):
 def cmd_new_window(session, window):
     cmd_win = 'tmux new-window -t {} -n {} bash'.format(session, window)
     cmd_path = cmd_send_keys(session, window, 'cd {}'.format(os.getcwd()))
-    return '{} & {}'.format(cmd_win, cmd_path)
+    return '{} ; {}'.format(cmd_win, cmd_path)
 
 def cmd_send_keys(session, window, cmd, enter=True):
     cmd = "tmux send-keys -t {}:{} '{}' ".format(session, window, cmd)

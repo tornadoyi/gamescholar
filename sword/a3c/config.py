@@ -113,16 +113,29 @@ class EnvExtension():
         map = self.game.map
         player, npcs = map.players[0], map.npcs
 
-        if len(npcs) == 0: return 1
+
+        # if player.attribute.hp < 1e-6: return -1
+        # elif len(npcs) == 0: return 1
+        # else: return 0
+
+
+
+        if player.attribute.hp < 1e-6: return -1
 
         sub_player_hp = player.attribute.hp - self.pre_player_hp
-        npc_hp = sum([o.attribute.hp for o in npcs])
+        npc_hp = 0 if len(npcs) == 0 else sum([o.attribute.hp for o in npcs])
         sub_npc_hp = npc_hp - self.pre_npc_hp
 
         self.pre_player_hp = player.attribute.hp
         self.pre_npc_hp = npc_hp
 
-        return (sub_player_hp - sub_npc_hp) / self.max_hp
+        r = (sub_player_hp - sub_npc_hp) / self.max_hp
+
+        if len(npcs) == 0: r += player.attribute.hp / self.max_hp
+
+        return r
+
+
 
 
 @extension(Serializer)
@@ -155,19 +168,25 @@ class SerializerExtension():
 
 
     def _serialize_map(self, k, map):
+        s_players = k.do_object(map.players, self._serialize_character)
         s_npcs = k.do_object(map.npcs, self._serialize_character)
-        return s_npcs
+        s = np.hstack([s_players, s_npcs])
+        return s
 
 
 
     def _serialize_character(self, k, char):
 
-        def norm_position(v, norm):
+        def norm_position_relative(v, norm):
             map = norm.game.map
             player = map.players[0]
             return (v - player.attribute.position) / map.bounds.max
 
+        def norm_position_abs(v, norm):
+            map = norm.game.map
+            return v / map.bounds.max
+
 
         attr = char.attribute
-        k.do(attr.position, None, norm_position)
+        k.do(attr.position, None, norm_position_abs)
         k.do(attr.hp, None, k.n_div_tag, config.Attr.hp)
