@@ -63,7 +63,7 @@ def main(_):
         process()
 
     except Exception as e:
-        logging.ERROR(e)
+        logging.error(e)
         raise e
 
 

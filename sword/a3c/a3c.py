@@ -4,6 +4,7 @@ This is the tensorflow worker to run a3c, core code is run() funtion
 
 import os
 import tensorflow as tf
+from tensorflow.python.client import device_lib
 import gym
 import gymgame
 import logging
@@ -27,7 +28,12 @@ LAMBDA = 1.0
 def run(server, args):
     """This is the main entry of tensorflow worker process"""
     # device and config
-    worker_device = "/job:worker/task:{}/{}:*".format(args.index, args.backend)
+    if args.backend == 'cpu':
+        worker_device = "/job:worker/task:{}/{}:*".format(args.index, args.backend)
+    else:
+        gpus = [d for d in device_lib.list_local_devices() if d.device_type == 'GPU']
+        worker_device = "/job:worker/task:{}/{}:{}".format(args.index, args.backend, args.index % len(gpus))
+
     config = tf.ConfigProto(device_filters=["/job:ps", worker_device])
 
     # summary writer

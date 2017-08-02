@@ -66,5 +66,5 @@ cluster = {'ps': create_hosts('127.0.0.1', PS_PORT, 1),
 START_LOG_DIR = 'start.log'
 logging.basicConfig(level=logging.INFO,
                     filename=START_LOG_DIR,
-                    filemode='w')
+                    )
 
