@@ -28,11 +28,11 @@ config.NPC_SKILL_COUNT = 1
 config.SKILL_DICT = {
     'normal_attack' : Skill(
         id = 'normal_attack',
-        cast_time = 0.3,
+        cast_time = 0.1,
         mp_cost = 0,
         target_required = True,
         target_relation = config.Relation.enemy,
-        cast_distance = 0.5,
+        cast_distance = 1.0,
         target_factors = [Damage(35.0, config.Relation.enemy)]
     ),
 
