@@ -33,7 +33,7 @@ config.SKILL_DICT = {
         target_required = True,
         target_relation = config.Relation.enemy,
         cast_distance = 0.5,
-        target_factors = [Damage(30.0, config.Relation.enemy)]
+        target_factors = [Damage(35.0, config.Relation.enemy)]
     ),
 
     'normal_shoot' : Skill(
@@ -41,11 +41,11 @@ config.SKILL_DICT = {
         cast_time = 0.3,
         mp_cost = 0,
         bullet_emitter = SingleEmitter(
-            speed=1.0,
+            speed=0.3 * config.GAME_PARAMS.fps,
             penetration=1.0,
             max_range=config.MAP_SIZE.x * 0.8,
             radius=0.1,
-            factors=[Damage(10.0, config.Relation.enemy)])
+            factors=[Damage(5.0, config.Relation.enemy)])
     ),
 
     'puncture_shoot' : Skill(
@@ -53,15 +53,15 @@ config.SKILL_DICT = {
         cast_time = 0.3,
         mp_cost = 0,
         bullet_emitter = SingleEmitter(
-            speed=1.0,
+            speed=0.3 * config.GAME_PARAMS.fps,
             penetration=np.Inf,
             max_range=config.MAP_SIZE.x * 0.8,
             radius=0.1,
-            factors=[Damage(10.0, config.Relation.enemy)])
+            factors=[Damage(5.0, config.Relation.enemy)])
     ),
 }
 
-config.PLAYER_SKILL_LIST = [config.SKILL_DICT['normal_shoot']]
+config.PLAYER_SKILL_LIST = [config.SKILL_DICT['puncture_shoot']]
 
 config.NPC_SKILL_LIST = [config.SKILL_DICT['normal_attack']]
 
