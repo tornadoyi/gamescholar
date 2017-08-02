@@ -49,6 +49,7 @@ def main():
     arg['--job-name'] = 'ps'
     cmds.append(cmd_new_window(session_name, 'ps'))
     cmds.append(cmd_execute_python(session_name, 'ps', 'process.py', arg))
+    cmds.append('sleep 3')
 
     # workers
     for i in range(args.num_workers):
