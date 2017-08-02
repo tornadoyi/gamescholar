@@ -2,6 +2,7 @@
 handle cmd line option
 """
 
+import logging
 import argparse
 from multiprocessing import cpu_count
 
@@ -57,4 +58,13 @@ def create_hosts(ip, port, num):
 
 cluster = {'ps': create_hosts('127.0.0.1', PS_PORT, 1),
            'worker': create_hosts('127.0.0.1', WORKER_PORT, args.num_workers + EXTRA_WORKER_COUNT)}
+
+
+
+
+# log
+START_LOG_DIR = 'start.log'
+logging.basicConfig(level=logging.INFO,
+                    filename=START_LOG_DIR,
+                    filemode='w')
 

@@ -13,8 +13,6 @@ import config as game_config
 from model import Model
 from agent import TrainAgent, PlayAgent
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 
 GAME_NAME = game_config.GAME_NAME
@@ -64,7 +62,7 @@ def run(server, args):
     # initializer
     init_all_op = tf.global_variables_initializer()
     def init_fn(ses):
-        logger.info("Initializing all parameters.")
+        logging.info("Initializing all parameters.")
         ses.run(init_all_op)
 
     sv = tf.train.Supervisor(is_chief=(args.index == 0 and args.mode != 'play'),
@@ -81,7 +79,7 @@ def run(server, args):
 
 
     with sv.managed_session(server.target, config=config) as sess, sess.as_default():
-        logger.info("Starting training at step=%d", sess.run(global_step))
+        logging.info("Starting training at step=%d", sess.run(global_step))
         worker(sess)
 
 

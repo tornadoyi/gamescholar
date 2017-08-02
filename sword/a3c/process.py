@@ -2,6 +2,7 @@ import tensorflow as tf
 import sys, signal
 import time
 import importlib.util
+import logging
 
 
 
@@ -58,7 +59,12 @@ class Process(object):
 def main(_):
     import option
     process = Process(option.args, option.cluster)
-    process()
+    try:
+        process()
+
+    except Exception as e:
+        logging.ERROR(e)
+        raise e
 
 
 

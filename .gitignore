@@ -6,3 +6,4 @@ dist
 .ipynb_checkpoints
 log
 .DS_Store
+*.log

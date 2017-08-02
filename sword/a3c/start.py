@@ -32,6 +32,9 @@ def cmd_execute_python(session, window, file, arg_dict):
 
 
 def main():
+    # clear start log
+    if os.path.exists(option.START_LOG_DIR): os.remove(option.START_LOG_DIR)
+
     # parse args
     args, arg_dict = option.args, option.arg_dict
     session_name = args.session_name
