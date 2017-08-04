@@ -9,7 +9,7 @@ from gym import spaces
 
 GAME_NAME = config.GAME_NAME
 
-config.MAP_SIZE = Vector2(10, 10)
+config.MAP_SIZE = Vector2(30, 30)
 
 config.GAME_PARAMS.fps = 24
 
@@ -33,7 +33,7 @@ config.SKILL_DICT = {
         target_required = True,
         target_relation = config.Relation.enemy,
         cast_distance = 1.0,
-        target_factors = [Damage(35.0, config.Relation.enemy)]
+        target_factors = [Damage(200.0, config.Relation.enemy)]
     ),
 
     'normal_shoot' : Skill(
@@ -84,7 +84,7 @@ config.BASE_NPC = edict(
     direct = Vector2(0, 0),
     speed = 0.1 * config.GAME_PARAMS.fps,
     radius = 0.5,
-    max_hp = 100.0,
+    max_hp = 150.0,
     camp = config.Camp[1],
     skills=config.NPC_SKILL_LIST
 )
