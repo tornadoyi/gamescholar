@@ -1,3 +1,8 @@
+"""
+This is TrainAgent/PlayAgent to interact with gym env.
+It's customized to fit A3C algorithm model.
+"""
+
 import tensorflow as tf
 import numpy as np
 import time
@@ -8,7 +13,7 @@ def discount(x, gamma):
     return scipy.signal.lfilter([1], [1, -gamma], x[::-1], axis=0)[::-1]
 
 
-class TrainWorker(object):
+class TrainAgent(object):
 
     def __init__(self,
                  ac, env,
@@ -45,7 +50,7 @@ class TrainWorker(object):
             features = init_features
 
             while True:
-                a, v, next_features = self.ac.choose_action(sess, s, features)
+                a, v = self.ac.choose_action(sess, s, features)
                 s_, r, done, info = self._step(a)
                 if self.render: self.env.render()
 
@@ -54,9 +59,9 @@ class TrainWorker(object):
                 buffer_r.append(r)
                 buffer_v.append(v)
 
-                if steps % self.update_nsteps == 0 or done:  # update global and assign to local net
+                if steps % 1 == 0 or done:  # update global and assign to local net
 
-                    v_ = 0 if done else self.ac.predict_value(sess, s, next_features)
+                    v_ = 0 if done else self.ac.predict_value(sess, s, init_features)
 
                     rewards = np.asarray(buffer_r)
                     vpred_t = np.asarray(buffer_v + [v_])
@@ -73,6 +78,7 @@ class TrainWorker(object):
                         self.ac.a: np.asarray(buffer_a),
                         self.ac.adv: batch_adv,
                         self.ac.r: batch_r,
+                        self.ac.state_in: init_features
                     }
 
                     summary = self.ac.learn(sess, [self.ac.summary_op], feed_dict)[0]
@@ -84,16 +90,12 @@ class TrainWorker(object):
                     buffer_s, buffer_a, buffer_r, buffer_v = [], [], [], []
 
 
-                    # update init features
-                    init_features = next_features
-
                     # summary
                     self.summary_writer.add_summary(tf.Summary.FromString(summary), sess.run(self.global_step))
                     self.summary_writer.flush()
 
 
                 s = s_
-                features = next_features
                 steps += 1
 
                 if done:
@@ -141,7 +143,7 @@ class TrainWorker(object):
 
 
 
-class PlayWorker(object):
+class PlayAgent(object):
     def __init__(self,
                  ac, env,
                  global_step, summary_writer,

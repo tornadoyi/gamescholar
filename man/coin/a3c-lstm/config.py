@@ -3,7 +3,9 @@ from gymgame.engine import extension, Vector2
 from gymgame.tinyrpg.man import config, Serializer, EnvironmentGym
 from gym import spaces
 
+config.MAP_SIZE = Vector2(10, 10)
 
+#config.GRID_SIZE = (30, 30)
 
 config.GAME_PARAMS.max_steps = 100
 
@@ -11,7 +13,11 @@ config.NUM_BULLET = 0
 
 config.NUM_COIN = 5
 
-config.COIN_INIT_RADIUS = (0.99, 1.0)
+config.PLAYER_INIT_RADIUS = (0.0, 0.1)
+
+config.COIN_INIT_RADIUS = (0.3, 1.0)
+
+config.COIN_REVIVE = False
 
 GAME_NAME = config.GAME_NAME
 
@@ -43,22 +49,9 @@ class SerializerExtension():
         s_coins = k.do_object(map.coins, self._serialize_npc)
         s_bullets = k.do_object(map.bullets, self._serialize_npc)
 
-        s_coins -= np.tile(s_players, len(map.coins))
-        s_bullets -= np.tile(s_players, len(map.bullets))
+        count = len(map.players) + len(map.coins) + len(map.bullets)
 
-        if self._grid_size is None:
-            return np.hstack([s_coins, s_bullets])
-
-        else:
-            bounds = map.bounds
-            grid_coins = self._objects_to_grilend(bounds, map.coins, s_coins, self._coin_shape)
-            grid_bullets = self._objects_to_grid(bounds, map.bullets, s_bullets, self._bullet_shape)
-
-            assemble = []
-            if grid_coins is not None: assemble.append(grid_coins)
-            if grid_bullets is not None: assemble.append(grid_bullets)
-
-            return np.concatenate(assemble, axis=2)
+        return np.hstack([s_players, s_coins, s_bullets]).reshape([count, -1])
 
 
     def _serialize_character_flat(self, k, char):

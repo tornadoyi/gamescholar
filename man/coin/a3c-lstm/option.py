@@ -1,5 +1,7 @@
 import argparse
+import logging
 from multiprocessing import cpu_count
+
 
 def str2bool(v):
   return v.lower() in ("yes", "true", "t", "1", True)
@@ -55,3 +57,14 @@ def create_hosts(ip, port, num):
 
 cluster = {'ps': create_hosts('127.0.0.1', PS_PORT, 1),
            'worker': create_hosts('127.0.0.1', WORKER_PORT, args.num_workers + EXTRA_WORKER_COUNT)}
+
+
+
+
+# log
+START_LOG_DIR = 'start.log'
+logging.basicConfig(level=logging.INFO,
+                    format = "%(levelname)s -{} %(asctime)s: %(message)s".format(args.index),
+                    datefmt='%H:%M:%S',
+                    filename=START_LOG_DIR,
+                    )

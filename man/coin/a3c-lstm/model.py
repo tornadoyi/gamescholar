@@ -26,6 +26,27 @@ def categorical_sample(logits, d):
     return tf.one_hot(value, d)
 
 
+def conv2d(x, num_filters, name, filter_size=(3, 3), stride=(1, 1), pad="SAME", dtype=tf.float32, collections=None):
+    with tf.variable_scope(name):
+        stride_shape = [1, stride[0], stride[1], 1]
+        filter_shape = [filter_size[0], filter_size[1], int(x.get_shape()[3]), num_filters]
+
+        # there are "num input feature maps * filter height * filter width"
+        # inputs to each hidden unit
+        fan_in = np.prod(filter_shape[:3])
+        # each unit in the lower layer receives a gradient from:
+        # "num output feature maps * filter height * filter width" /
+        #   pooling size
+        fan_out = np.prod(filter_shape[:2]) * num_filters
+        # initialize weights with random weights
+        w_bound = np.sqrt(6. / (fan_in + fan_out))
+
+        w = tf.get_variable("W", filter_shape, dtype, tf.random_uniform_initializer(-w_bound, w_bound),
+                            collections=collections)
+        b = tf.get_variable("b", [1, 1, 1, num_filters], initializer=tf.constant_initializer(0.0),
+                            collections=collections)
+        return tf.nn.conv2d(x, w, stride_shape, pad) + b
+
 
 class Model(object):
 
@@ -46,7 +67,7 @@ class Model(object):
 
 
         # s should be (batch, features)
-        self.s = tf.placeholder(tf.float32, [None] + list(self.input_shape), name='s')
+        self.s = tf.placeholder(tf.float32, [None, 6, 2], name='s')
         self.a = tf.placeholder(tf.float32, [None, self.action_size], name="a")
         self.adv = tf.placeholder(tf.float32, [None], name="adv")
         self.r = tf.placeholder(tf.float32, [None], name="r")
@@ -68,24 +89,23 @@ class Model(object):
 
     def _create_network(self):
 
-        '''
-        s = tf.expand_dims(self.s, axis=0)
-
+        s = self.s#tf.expand_dims(self.s, axis=0)
         lstm_size = 256
-        lstm_cell = tf.contrib.rnn.BasicLSTMCell(lstm_size, state_is_tuple=True)
-        self.state_in = lstm_cell.zero_state(1, tf.float32)
-        lstm_outputs, self.state_out = tf.nn.dynamic_rnn(lstm_cell, s, initial_state=self.state_in, time_major=False)
-
+        cell = tf.contrib.rnn.BasicLSTMCell(lstm_size, state_is_tuple=True)
+        self.state_in = cell.zero_state(1, tf.float32)
+        lstm_outputs, self.state_out = tf.nn.dynamic_rnn(cell, s, initial_state=self.state_in, time_major=False)
         x = tf.reshape(lstm_outputs, [-1, lstm_size])
-        '''
-
-        self.state_in = self.state_out = tf.constant(0.0)
-        x1 = tf.nn.relu(linear(self.s, 256, "pi_input", normalized_columns_initializer(0.01)))
-        x2 = tf.nn.relu(linear(self.s, 128, "vf_input", normalized_columns_initializer(0.01)))
 
 
-        self.logits = linear(x1, self.action_size, "action", normalized_columns_initializer(0.01))
-        self.vf = tf.reshape(linear(x2, 1, "value", normalized_columns_initializer(1.0)), [-1])
+        l = x
+        l = tf.nn.relu(linear(l, 256, "pi_1", normalized_columns_initializer(0.01)))
+        #l = tf.nn.relu(linear(l, 256, "pi_2", normalized_columns_initializer(0.01)))
+        self.logits = linear(l, self.action_size, "action", normalized_columns_initializer(0.01))
+
+        l = x
+        l = tf.nn.relu(linear(l, 128, "vf_1", normalized_columns_initializer(0.01)))
+        #l = tf.nn.relu(linear(l, 128, "vf_2", normalized_columns_initializer(0.01)))
+        self.vf = tf.reshape(linear(l, 1, "value", normalized_columns_initializer(1.0)), [-1])
 
         self.sample = categorical_sample(self.logits, self.action_size)[0, :]
         self.probs = tf.nn.softmax(self.logits)
@@ -128,7 +148,7 @@ class Model(object):
 
 
     def choose_action(self, sess, s, features):
-        return sess.run([self.sample, self.vf, self.state_out], {self.s: [s], self.state_in: features})
+        return sess.run([self.sample, self.vf], {self.s: [s], self.state_in: features})
 
 
     def predict_value(self, sess, s, features):
