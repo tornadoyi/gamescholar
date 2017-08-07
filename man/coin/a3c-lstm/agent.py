@@ -73,15 +73,17 @@ class TrainAgent(object):
                     # https://arxiv.org/abs/1506.02438
                     batch_adv = discount(delta_t, self.gamma * self.lambda_)
 
-                    feed_dict = {
-                        self.ac.s: np.asarray(buffer_s),
-                        self.ac.a: np.asarray(buffer_a),
-                        self.ac.adv: batch_adv,
-                        self.ac.r: batch_r,
-                        self.ac.state_in: init_features
-                    }
 
-                    summary = self.ac.learn(sess, [self.ac.summary_op], feed_dict)[0]
+                    for i in range(len(buffer_s)):
+                        feed_dict = {
+                            self.ac.s: np.asarray(buffer_s[i]).reshape([-1, 2]),
+                            self.ac.a: np.asarray(buffer_a[i]),
+                            self.ac.adv: batch_adv[i],
+                            self.ac.r: batch_r[i],
+                            self.ac.state_in: init_features
+                        }
+
+                        summary = self.ac.learn(sess, [self.ac.summary_op], feed_dict)[0]
 
                     # sync from gloabl ac
                     self.ac.pull(sess)

@@ -67,10 +67,10 @@ class Model(object):
 
 
         # s should be (batch, features)
-        self.s = tf.placeholder(tf.float32, [None, 6, 2], name='s')
-        self.a = tf.placeholder(tf.float32, [None, self.action_size], name="a")
-        self.adv = tf.placeholder(tf.float32, [None], name="adv")
-        self.r = tf.placeholder(tf.float32, [None], name="r")
+        self.s = tf.placeholder(tf.float32, [None, 2], name='s')
+        self.a = tf.placeholder(tf.float32, [self.action_size], name="a")
+        self.adv = tf.placeholder(tf.float32, (1,), name="adv")
+        self.r = tf.placeholder(tf.float32, (), name="r")
 
         self.batch_size = tf.to_float(tf.shape(self.s)[0])
 
@@ -89,12 +89,17 @@ class Model(object):
 
     def _create_network(self):
 
-        s = self.s#tf.expand_dims(self.s, axis=0)
+        s = tf.expand_dims(self.s, axis=0)
         lstm_size = 256
         cell = tf.contrib.rnn.BasicLSTMCell(lstm_size, state_is_tuple=True)
         self.state_in = cell.zero_state(1, tf.float32)
-        lstm_outputs, self.state_out = tf.nn.dynamic_rnn(cell, s, initial_state=self.state_in, time_major=False)
-        x = tf.reshape(lstm_outputs, [-1, lstm_size])
+        lstm_outputs, self.state_out = tf.nn.dynamic_rnn(cell,
+                                                         s,
+                                                         initial_state=self.state_in,
+                                                         time_major=False,
+                                                         )
+        x = tf.squeeze(lstm_outputs, axis=0)
+        x = tf.reshape(x[-1], [1, -1])
 
 
         l = x
@@ -148,11 +153,11 @@ class Model(object):
 
 
     def choose_action(self, sess, s, features):
-        return sess.run([self.sample, self.vf], {self.s: [s], self.state_in: features})
+        return sess.run([self.sample, self.vf], {self.s: s, self.state_in: features})
 
 
     def predict_value(self, sess, s, features):
-        return sess.run(self.vf, {self.s: [s], self.state_in: features})[0]
+        return sess.run(self.vf, {self.s: s, self.state_in: features})[0]
 
 
     def learn(self, sess, fetches=[], feed_dict={}):  # run by a local
