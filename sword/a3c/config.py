@@ -11,6 +11,8 @@ GAME_NAME = config.GAME_NAME
 
 config.MAP_SIZE = Vector2(30, 30)
 
+config.GRID_SIZE = Vector2(30, 30)
+
 config.GAME_PARAMS.fps = 24
 
 config.GAME_PARAMS.max_steps = 300
@@ -168,10 +170,25 @@ class SerializerExtension():
 
 
     def _serialize_map(self, k, map):
-        s_players = k.do_object(map.players, self._serialize_character)
-        s_npcs = k.do_object(map.npcs, self._serialize_character)
-        s = np.hstack([s_players, s_npcs])
-        return s
+        s_players = k.do_object(map.players, self._serialize_player)
+        s_npcs = k.do_object(map.npcs, self._serialize_npc)
+        s_bullets = []#k.do_object(map.bullets, self._serialize_bullet)
+
+        if self._grid_size is None:
+            return np.hstack([s_players, s_npcs, s_bullets])
+
+        else:
+            bounds = map.bounds
+            grid_players = self._objects_to_grid(bounds, map.players, s_players, self._player_shape)
+            grid_npcs = self._objects_to_grid(bounds, map.npcs, s_npcs, self._npc_shape)
+            grid_bullets = None#self._objects_to_grid(bounds, map.bullets, s_bullets, self._bullet_shape)
+
+            assemble = []
+            if grid_players is not None: assemble.append(grid_players)
+            if grid_npcs is not None: assemble.append(grid_npcs)
+            if grid_bullets is not None: assemble.append(grid_bullets)
+
+            return np.concatenate(assemble, axis=2)
 
 
 
