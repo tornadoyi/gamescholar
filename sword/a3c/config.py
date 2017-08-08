@@ -11,7 +11,7 @@ GAME_NAME = config.GAME_NAME
 
 config.MAP_SIZE = Vector2(30, 30)
 
-config.GRID_SIZE = Vector2(60, 60)
+#config.GRID_SIZE = Vector2(20, 20)
 
 config.GAME_PARAMS.fps = 24
 
