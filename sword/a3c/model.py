@@ -96,10 +96,12 @@ class Model(object):
     def _create_network(self):
 
         x = self.s
+        '''
         for i in range(3):
             x = tf.nn.relu(conv2d(x, 32, "l{}".format(i + 1), [3, 3], [2, 2]))
+        '''
 
-        x = flatten(x)
+        #x = flatten(x)
 
         self.state_in = self.state_out = tf.constant(0.0)
 
