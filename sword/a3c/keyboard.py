@@ -62,13 +62,20 @@ def listen_to_keyboard():
 
 def run(render=False):
     env = gym.make(config.GAME_NAME)
+    env = env.unwrapped
     env.reset()
 
-    ACTION_KEYS = [Key.up, Key.right, Key.down, Key.left]
+    ACTION_KEYS = {
+        Key.up: 0,
+        Key.right: 2,
+        Key.down: 4,
+        Key.left: 6,
+        Key.space: 8
+    }
 
     def on_press(key):
         if key in ACTION_KEYS:
-            env.step(ACTION_KEYS.index(key))
+            env.step((ACTION_KEYS[key], env.game.map.npcs[0]))
             if render: env.render()
             if env.terminal: env.reset()
 
@@ -79,4 +86,4 @@ def run(render=False):
 if __name__ == '__main__':
     # listen_to_keyboard()
     # listen_to_mouse()
-    run()
+    run(True)

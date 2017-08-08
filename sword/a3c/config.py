@@ -9,6 +9,8 @@ from gym import spaces
 
 GAME_NAME = config.GAME_NAME
 
+config.BOKEH_MODE = "bokeh_serve"  # you need run `bokeh serve` firstly
+
 config.MAP_SIZE = Vector2(30, 30)
 
 config.GRID_SIZE = Vector2(60, 60)
