@@ -30,7 +30,7 @@ config.NPC_SKILL_COUNT = 1
 config.SKILL_DICT = {
     'normal_attack' : Skill(
         id = 'normal_attack',
-        cast_time = 0.1,
+        cast_time = 0.0,#0.1,
         mp_cost = 0,
         target_required = True,
         target_relation = config.Relation.enemy,
@@ -40,7 +40,7 @@ config.SKILL_DICT = {
 
     'normal_shoot' : Skill(
         id = 'normal_shoot',
-        cast_time = 0.3,
+        cast_time = 0.0, #0.3,
         mp_cost = 0,
         bullet_emitter = SingleEmitter(
             speed=0.3 * config.GAME_PARAMS.fps,
@@ -52,7 +52,7 @@ config.SKILL_DICT = {
 
     'puncture_shoot' : Skill(
         id = 'normal_shoot',
-        cast_time = 0.3,
+        cast_time = 0.0,#0.3,
         mp_cost = 0,
         bullet_emitter = SingleEmitter(
             speed=0.3 * config.GAME_PARAMS.fps,
@@ -86,7 +86,7 @@ config.BASE_NPC = edict(
     direct = Vector2(0, 0),
     speed = 0.1 * config.GAME_PARAMS.fps,
     radius = 0.5,
-    max_hp = 150.0,
+    max_hp = 400.0,
     camp = config.Camp[1],
     skills=config.NPC_SKILL_LIST
 )
