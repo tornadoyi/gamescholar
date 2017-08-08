@@ -11,7 +11,7 @@ GAME_NAME = config.GAME_NAME
 
 config.MAP_SIZE = Vector2(30, 30)
 
-config.GRID_SIZE = Vector2(30, 30)
+config.GRID_SIZE = Vector2(60, 60)
 
 config.GAME_PARAMS.fps = 24
 
@@ -205,5 +205,5 @@ class SerializerExtension():
 
 
         attr = char.attribute
-        k.do(attr.position, None, norm_position_abs)
+        if self._grid_size is None: k.do(attr.position, None, norm_position_abs)
         k.do(attr.hp, None, k.n_div_tag, config.Attr.hp)

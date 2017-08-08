@@ -2,6 +2,7 @@
 handle cmd line option
 """
 
+import os
 import logging
 import argparse
 from multiprocessing import cpu_count
@@ -41,7 +42,6 @@ for a in parser._actions:
 
 
 # cluster
-
 PS_PORT = 12222
 
 WORKER_PORT = 20000
@@ -63,10 +63,27 @@ cluster = {'ps': create_hosts('127.0.0.1', PS_PORT, 1),
 
 
 # log
-START_LOG_DIR = 'start.log'
-logging.basicConfig(level=logging.INFO,
-                    format = "%(levelname)s -{} %(asctime)s: %(message)s".format(args.index),
-                    datefmt='%H:%M:%S',
-                    filename=START_LOG_DIR,
-                    )
+if not os.path.exists(args.log_dir): os.mkdir(args.log_dir)
+
+ALL_LOG_DIR = os.path.join(args.log_dir, 'all.log')
+
+ERROR_LOG_DIR = os.path.join(args.log_dir, 'error.log')
+
+formatter = logging.Formatter(
+    "%(levelname)s -{} %(asctime)s: %(message)s".format(args.index),
+    '%H:%M:%S'
+)
+
+hdl_all = logging.FileHandler(ALL_LOG_DIR)
+hdl_error = logging.FileHandler(ERROR_LOG_DIR)
+
+hdl_all.setFormatter(formatter)
+hdl_error.setFormatter(formatter)
+
+hdl_all.setLevel(logging.DEBUG)
+hdl_error.setLevel(logging.ERROR)
+
+logging.getLogger().addHandler(hdl_all)
+logging.getLogger().addHandler(hdl_error)
+
 

@@ -103,11 +103,13 @@ class Model(object):
 
         self.state_in = self.state_out = tf.constant(0.0)
 
-        l = tf.nn.relu(linear(x, 1024, "pi_l1", normalized_columns_initializer(0.01)))
+        l = x
+        l = tf.nn.relu(linear(l, 1024, "pi_l1", normalized_columns_initializer(0.01)))
         l = tf.nn.relu(linear(l, 512, "pi_l2", normalized_columns_initializer(0.01)))
         self.logits = linear(l, self.action_size, "action", normalized_columns_initializer(0.01))
 
-        l = tf.nn.relu(linear(x, 512, "vf_l1", normalized_columns_initializer(0.01)))
+        l = x
+        l = tf.nn.relu(linear(l, 512, "vf_l1", normalized_columns_initializer(0.01)))
         l = tf.nn.relu(linear(l, 256, "vf_l2", normalized_columns_initializer(0.01)))
         self.vf = tf.reshape(linear(l, 1, "value", normalized_columns_initializer(1.0)), [-1])
 
