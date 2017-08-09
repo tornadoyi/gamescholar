@@ -1,10 +1,14 @@
 #!/usr/bin/expect -f
-#spawn scp -r ./ guyi@192.168.8.103:/home/guyi/Projects/gamescholar
-spawn rsync --progress -r  \
-    --exclude .* --exclude *.pyc --exclude __pycache__ --exclude log \
-    ./ guyi@192.168.8.103:/home/guyi/Projects/gamescholar
+
+set host "192.168.8.103"
+set username "guyi"
+set password "123456"
+set path "/home/guyi/Projects/gamescholar"
+
+
+spawn rsync --progress -r --exclude .* --exclude *.pyc --exclude __pycache__ --exclude log ./ ${username}@${host}:${path}
 
 expect "*password:"
-send "123456\r"
+send "${password}\r"
 
 expect eof%
