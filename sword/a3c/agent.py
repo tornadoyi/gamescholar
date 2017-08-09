@@ -78,6 +78,7 @@ class TrainAgent(object):
                         self.ac.a: np.asarray(buffer_a),
                         self.ac.adv: batch_adv,
                         self.ac.r: batch_r,
+                        self.ac.state_in: init_features
                     }
 
                     summary = self.ac.learn(sess, [self.ac.summary_op], feed_dict)[0]
