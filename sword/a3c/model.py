@@ -95,25 +95,27 @@ class Model(object):
 
     def _create_network(self):
 
-        x = tf.expand_dims(self.s, axis=0)
+        # x = tf.expand_dims(self.s, axis=0)
 
-        lstm_size = 1024
-        cell = tf.contrib.rnn.BasicLSTMCell(lstm_size, state_is_tuple=True)
-        self.state_in = cell.zero_state(1, tf.float32)
-        lstm_outputs, self.state_out = tf.nn.dynamic_rnn(cell,
-                                                         x,
-                                                         initial_state=self.state_in,
-                                                         time_major=False,
-                                                         )
-        x = tf.reshape(lstm_outputs, [-1, lstm_size])
+        # lstm_size = 1024
+        # cell = tf.contrib.rnn.BasicLSTMCell(lstm_size, state_is_tuple=True)
+        # self.state_in = cell.zero_state(1, tf.float32)
+        # lstm_outputs, self.state_out = tf.nn.dynamic_rnn(cell,
+        #                                                  x,
+        #                                                  initial_state=self.state_in,
+        #                                                  time_major=False,
+        #                                                  )
+        # x = tf.reshape(lstm_outputs, [-1, lstm_size])
+        x = self.s
+        self.state_in = self.state_out = tf.constant(0.0)
 
         l = x
-        #l = tf.nn.relu(linear(l, 1024, "pi_l1", normalized_columns_initializer(0.01)))
+        l = tf.nn.relu(linear(l, 1024, "pi_l1", normalized_columns_initializer(0.01)))
         l = tf.nn.relu(linear(l, 512, "pi_l2", normalized_columns_initializer(0.01)))
         self.logits = linear(l, self.action_size, "action", normalized_columns_initializer(0.01))
 
         l = x
-        #l = tf.nn.relu(linear(l, 512, "vf_l1", normalized_columns_initializer(0.01)))
+        l = tf.nn.relu(linear(l, 512, "vf_l1", normalized_columns_initializer(0.01)))
         l = tf.nn.relu(linear(l, 256, "vf_l2", normalized_columns_initializer(0.01)))
         self.vf = tf.reshape(linear(l, 1, "value", normalized_columns_initializer(1.0)), [-1])
 
