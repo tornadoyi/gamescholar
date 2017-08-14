@@ -134,7 +134,7 @@ class ExtensionGame():
         player, npcs = map.players[0], map.npcs
 
         # set eyes
-        angle = NUM_EYES / 360.0
+        angle =  360.0 / NUM_EYES
         eyes = [Eye(i, (i * angle, (i + 1) * angle)) for i in range(NUM_EYES)]
         player.eyes = eyes  # setattr(player, 'eyes', eyes)
 
@@ -228,7 +228,7 @@ class SerializerExtension():
         vec = npc_pos - player_pos
         radian = np.arctan2(vec[:, 1], vec[:, 0])
         radian = (radian + 2*np.pi) % (2*np.pi)
-        eye_indexes = (radian / (NUM_EYES / 360.0 * np.pi)).astype(np.int)
+        eye_indexes = (radian / (2 * np.pi / NUM_EYES)).astype(np.int)
 
         distance = np.sqrt(np.sum(np.square(vec), axis=1))
         indexes = np.arange(len(distance))
