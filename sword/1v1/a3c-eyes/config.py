@@ -1,8 +1,9 @@
 import numpy as np
 from easydict import EasyDict as edict
 from gymgame.engine import extension, Vector2
-from gymgame.tinyrpg.sword import config, Serializer, EnvironmentGym
+from gymgame.tinyrpg.sword import config, Serializer, EnvironmentGym, Game
 from gymgame.tinyrpg.framework import Skill, Damage, SingleEmitter
+from gymgame.engine.geometry import geometry2d as g2d
 from gym import spaces
 
 
@@ -13,7 +14,12 @@ config.BOKEH_MODE = "notebook"  # you need run `bokeh serve` firstly
 
 config.MAP_SIZE = Vector2(30, 30)
 
-#config.GRID_SIZE = Vector2(20, 20)
+NUM_EYES = 30
+
+EYE_DYNAMIC_VIEW = np.max(config.MAP_SIZE) * 0.8
+
+EYE_STATIC_VIEW = np.max(config.MAP_SIZE) * 0.1
+
 
 config.GAME_PARAMS.fps = 24
 
@@ -97,6 +103,42 @@ config.BASE_NPC = edict(
 
 
 
+class Eye(object):
+    def __init__(self, index, angles):
+        vx = Vector2(1, 0)
+        self.index = index
+        self.angles = angles
+        self.angle = np.mean(self.angles)
+        self.direct = vx.rotate(self.angle)
+        self.directs = (vx.rotate(self.angles[0]), vx.rotate(self.angles[1]))
+
+        # temp
+        self.sensed_object = None
+        self.sensed_range = None
+
+
+    def reset(self, o=None, range=None):
+        self.sensed_object = o
+        self.sensed_range = range
+
+
+
+
+@extension(Game)
+class ExtensionGame():
+    def _reset(self):
+        super(Game, self)._reset()
+
+        map = self.map
+        player, npcs = map.players[0], map.npcs
+
+        # set eyes
+        angle = NUM_EYES / 360.0
+        eyes = [Eye(i, (i * angle, (i + 1) * angle)) for i in range(NUM_EYES)]
+        player.eyes = eyes  # setattr(player, 'eyes', eyes)
+
+
+
 @extension(EnvironmentGym)
 class EnvExtension():
     def _init_action_space(self): return spaces.Discrete(9)
@@ -107,6 +149,7 @@ class EnvExtension():
         map = self.game.map
         player, npcs = map.players[0], map.npcs
 
+        # record frame hp for reward
         self.max_hp = max([player.attribute.hp] + [o.attribute.hp for o in npcs])
         self.pre_player_hp = player.attribute.hp
         self.pre_npc_hp = sum([o.attribute.hp for o in npcs])
@@ -142,6 +185,9 @@ class EnvExtension():
 
 
 
+
+
+
 @extension(Serializer)
 class SerializerExtension():
 
@@ -171,41 +217,91 @@ class SerializerExtension():
 
 
 
+
     def _serialize_map(self, k, map):
-        s_players = k.do_object(map.players, self._serialize_player)
-        s_npcs = k.do_object(map.npcs, self._serialize_npc)
-        s_bullets = []#k.do_object(map.bullets, self._serialize_bullet)
+        player, npcs = map.players[0], map.npcs
 
-        if self._grid_size is None:
-            return np.hstack([s_players, s_npcs, s_bullets])
+        npc_pos = np.array([o.attribute.position for o in npcs]).reshape([-1, 2])
+        player_pos = player.attribute.position
 
-        else:
-            bounds = map.bounds
-            grid_players = self._objects_to_grid(bounds, map.players, s_players, self._player_shape)
-            grid_npcs = self._objects_to_grid(bounds, map.npcs, s_npcs, self._npc_shape)
-            grid_bullets = None#self._objects_to_grid(bounds, map.bullets, s_bullets, self._bullet_shape)
+        vec = npc_pos - player_pos
+        radian = np.arctan2(vec[:, 1], vec[:, 0])
+        radian = (radian + 2*np.pi) % (2*np.pi)
+        eye_indexes = (radian / (NUM_EYES / 360.0 * np.pi)).astype(np.int)
 
-            assemble = []
-            if grid_players is not None: assemble.append(grid_players)
-            if grid_npcs is not None: assemble.append(grid_npcs)
-            if grid_bullets is not None: assemble.append(grid_bullets)
+        distance = np.sqrt(np.sum(np.square(vec), axis=1))
+        indexes = np.arange(len(distance))
+        eyes = player.eyes
+        for i in range(len(eyes)):
+            e = eyes[i]
+            cond = (eye_indexes == i)
+            idx = indexes[cond]
 
-            return np.concatenate(assemble, axis=2)
+            # check dynamic
+            if len(idx) > 0:
+                index = idx[np.argmax(distance[idx])]
+
+                # see dynamic object
+                if distance[index] <= EYE_DYNAMIC_VIEW:
+                    e.reset(npcs[index], distance[index])
+
+                # see nothing
+                else:
+                    e.reset()
+
+
+            # check wall
+            else:
+                point = g2d.raycast(player_pos, e.direct, EYE_STATIC_VIEW, map.bounds)
+
+                # see wall
+                if point is not None:
+                    e.reset(map.bounds, point.distance(player_pos))
+
+                # see nothing
+                else:
+                    e.reset()
+
+
+        # serialize npc
+        s = np.zeros(NUM_EYES * 5 + 3)
+        for i in range(len(eyes)):
+            e = eyes[i]
+            st = i * 5
+            s[st + 0] = 1.0  # dynamic range
+            s[st + 1] = 1.0  # static range
+            s[st + 2] = 0.0  # speed x
+            s[st + 3] = 0.0  # speed y
+            s[st + 4] = 0.0  # hp
+
+            if e.sensed_object is None: continue
+            elif type(e.sensed_object) == type(map.bounds): s[st + 1] = e.sensed_range / EYE_STATIC_VIEW
+            else:
+                s_o = k.do_object(e.sensed_object, self._serialize_character)
+                direct, speed, hp, _ = np.split(s_o, [2, 3, 4])
+                vx, vy = direct * speed
+                s[st + 0] = e.sensed_range / EYE_DYNAMIC_VIEW
+                s[st + 2] = vx
+                s[st + 3] = vy
+                s[st + 4] = hp
+
+
+        # serialize player
+        s_o = k.do_object(player, self._serialize_character)
+        direct, speed, hp, _ = np.split(s_o, [2, 3, 4])
+        vx, vy = direct * speed
+        s[-3 + 0] = vx
+        s[-3 + 1] = vy
+        s[-3 + 2] = hp
+
+
+        return s
+
 
 
 
     def _serialize_character(self, k, char):
-
-        def norm_position_relative(v, norm):
-            map = norm.game.map
-            player = map.players[0]
-            return (v - player.attribute.position) / map.bounds.max
-
-        def norm_position_abs(v, norm):
-            map = norm.game.map
-            return v / map.bounds.max
-
-
         attr = char.attribute
-        if self._grid_size is None: k.do(attr.position, None, norm_position_abs)
+        k.do(attr.direct, None, None, None)
+        k.do(attr.speed, None, k.n_div_tag, config.Attr.speed)
         k.do(attr.hp, None, k.n_div_tag, config.Attr.hp)
