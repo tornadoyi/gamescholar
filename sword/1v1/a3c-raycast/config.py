@@ -3,6 +3,7 @@ from easydict import EasyDict as edict
 from gymgame.engine import extension, Vector2
 from gymgame.tinyrpg.sword import config, Serializer, EnvironmentGym, Game
 from gymgame.tinyrpg.framework import Skill, Damage, SingleEmitter
+from gymgame.tinyrpg.framework.render import PlayerRender
 from gymgame.engine.geometry import geometry2d as g2d
 from gym import spaces
 
@@ -305,3 +306,55 @@ class SerializerExtension():
         k.do(attr.direct, None, None, None)
         k.do(attr.speed, None, k.n_div_tag, config.Attr.speed)
         k.do(attr.hp, None, k.n_div_tag, config.Attr.hp)
+
+
+
+@extension(PlayerRender)
+class PlayerRenderExtension():
+    def initialize(self, env, game, plot_dict):
+        c_list = game.map.players  # not characters! otherwise will render all characters in this way!!!
+        c_num = len(c_list)
+
+        self.rd = plot_dict.map.circle(
+            [-1] * c_num, [-1] * c_num,
+            radius=[_.attribute.radius for _ in c_list],
+            line_color=[self._get_line_color(_) for _ in c_list],
+            line_width=[3] * c_num,
+            fill_color=["yellow"] * c_num,
+            fill_alpha=[_c.attribute.hp / _c.attribute.max_hp for _c in c_list]
+        )
+
+        e_list = game.map.players[0].eyes
+        self.rd_detect = plot_dict.map.wedge(
+            [-1], [-1],
+            radius=[1],
+            start_angle=[1],
+            end_angle=[1],
+            color=["grey"], fill_alpha=[0.05])
+
+
+
+    def __call__(self, env, game):
+        p_list = game.map.players
+        all_x = [_.attribute.position.x for _ in p_list]
+        all_y = [_.attribute.position.y for _ in p_list]
+
+        # 画player
+        self.rd.data_source.data['x'] = all_x
+        self.rd.data_source.data['y'] = all_y
+        self.rd.data_source.data['radius'] = [_.attribute.radius for _ in p_list]
+        self.rd.data_source.data['fill_alpha'] = [_c.attribute.hp / _c.attribute.max_hp for _c in
+                                                  p_list]
+
+        # 画player的探测射线
+        e_list = game.map.players[0].eyes
+        for p in p_list:
+            self.rd_detect.data_source.data['x'] = [p.attribute.position.x] * len(e_list)
+            self.rd_detect.data_source.data['y'] = [p.attribute.position.y] * len(e_list)
+            self.rd_detect.data_source.data['radius'] = [e.sensed_range for e in e_list]
+            self.rd_detect.data_source.data['start_angle'] = [np.radians(e.angles[0]) for e in e_list]
+            self.rd_detect.data_source.data['end_angle'] = [np.radians(e.angles[1]) for e in e_list]
+            self.rd_detect.data_source.data['color'] = [
+                "grey" if isinstance(e.sensed_object, type(game.map.bounds)) else "red" for e in e_list]
+
+        # TODO: 加一条直连npc的直线

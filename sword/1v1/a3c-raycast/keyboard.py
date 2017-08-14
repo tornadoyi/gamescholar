@@ -86,4 +86,4 @@ def run(render=False):
 if __name__ == '__main__':
     # listen_to_keyboard()
     # listen_to_mouse()
-    run(False)
+    run(True)
