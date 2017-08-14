@@ -3,7 +3,7 @@ from easydict import EasyDict as edict
 from gymgame.engine import extension, Vector2
 from gymgame.tinyrpg.sword import config, Serializer, EnvironmentGym, Game
 from gymgame.tinyrpg.framework import Skill, Damage, SingleEmitter
-from gymgame.tinyrpg.framework.render import PlayerRenderer
+from gymgame.tinyrpg.framework.render import PlayerRenderer, ModuleRenderer
 from gymgame.engine.geometry import geometry2d as g2d
 from gym import spaces
 
@@ -312,50 +312,66 @@ class SerializerExtension():
 @extension(PlayerRenderer)
 class PlayerRenderExtension():
     def initialize(self, *args, **kwargs):
-        super(PlayerRenderer, self).initialize(*args, **kwargs)
-        c_list = self.game.map.players  # not characters! otherwise will render all characters in this way!!!
+        ModuleRenderer.initialize(self, *args, **kwargs)
+        c_list = self.game.map.characters
         c_num = len(c_list)
+        p_list = self.game.map.players
 
+        self.total_eye_count = 0
+        for i in range(len(p_list)): self.total_eye_count += len(p_list[i].eyes)
+
+        eye_count = self.total_eye_count
         self.rd = self.render_state.map.circle(
             [-1] * c_num, [-1] * c_num,
             radius=[_.attribute.radius for _ in c_list],
             line_color=[self._get_line_color(_) for _ in c_list],
             line_width=[3] * c_num,
-            fill_color=["yellow"] * c_num,
+            fill_color=["firebrick"] * c_num,
             fill_alpha=[_c.attribute.hp / _c.attribute.max_hp for _c in c_list]
         )
-
-        e_list = self.game.map.players[0].eyes
         self.rd_detect = self.render_state.map.wedge(
-            [-1], [-1],
-            radius=[1],
-            start_angle=[1],
-            end_angle=[1],
-            color=["grey"], fill_alpha=[0.05])
-
-
+            [-1] * eye_count, [-1] * eye_count,
+            radius=[1] * eye_count,
+            start_angle=[1] * eye_count,
+            end_angle=[1] * eye_count,
+            fill_color=["blue"] * eye_count, line_color=None, fill_alpha=[0.1] * eye_count)
 
     def __call__(self):
+        e_list = self.game.map.players[0].eyes
         p_list = self.game.map.players
-        all_x = [_.attribute.position.x for _ in p_list]
-        all_y = [_.attribute.position.y for _ in p_list]
-
-        # 画player
+        c_list = self.game.map.characters
+        all_x = [p.attribute.position.x for p in p_list]
+        all_y = [p.attribute.position.y for p in c_list]
         self.rd.data_source.data['x'] = all_x
         self.rd.data_source.data['y'] = all_y
-        self.rd.data_source.data['radius'] = [_.attribute.radius for _ in p_list]
-        self.rd.data_source.data['fill_alpha'] = [_c.attribute.hp / _c.attribute.max_hp for _c in
-                                                  p_list]
+        self.rd.data_source.data['radius'] = [_.attribute.radius for _ in c_list]
 
-        # 画player的探测射线
-        e_list = self.game.map.players[0].eyes
-        for p in p_list:
-            self.rd_detect.data_source.data['x'] = [p.attribute.position.x] * len(e_list)
-            self.rd_detect.data_source.data['y'] = [p.attribute.position.y] * len(e_list)
-            self.rd_detect.data_source.data['radius'] = [e.sensed_range for e in e_list]
-            self.rd_detect.data_source.data['start_angle'] = [np.radians(e.angles[0]) for e in e_list]
-            self.rd_detect.data_source.data['end_angle'] = [np.radians(e.angles[1]) for e in e_list]
-            self.rd_detect.data_source.data['color'] = [
-                "grey" if isinstance(e.sensed_object, type(self.game.map.bounds)) else "red" for e in e_list]
+        colors = [None] * self.total_eye_count
+        radius = [None] * self.total_eye_count
+        start_angles = [None] * self.total_eye_count
+        end_angles = [None] * self.total_eye_count
 
-        # TODO: 加一条直连npc的直线
+        index = -1
+        for player in p_list:
+            for e in e_list:
+                index += 1
+                start_angles[index] = np.radians(e.angles[0])
+                end_angles[index] = np.radians(e.angles[1])
+                radius[index] = e.sensed_range or 0.0
+
+                if e.sensed_object is None:
+                    colors[index] = None
+
+                else:
+                    # npc
+                    if type(e.sensed_object) != type(self.game.map.bounds):
+                        colors[index] = "red"
+                    else:
+                        colors[index] = "grey"
+
+        self.rd_detect.data_source.data['fill_color'] = colors
+        self.rd_detect.data_source.data['x'] = [player.attribute.position.x] * len(colors)
+        self.rd_detect.data_source.data['y'] = [player.attribute.position.y] * len(colors)
+        self.rd_detect.data_source.data['radius'] = radius
+        self.rd_detect.data_source.data['start_angle'] = start_angles
+        self.rd_detect.data_source.data['end_angle'] = end_angles
