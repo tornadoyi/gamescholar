@@ -312,66 +312,47 @@ class SerializerExtension():
 @extension(PlayerRenderer)
 class PlayerRenderExtension():
     def initialize(self, *args, **kwargs):
-        ModuleRenderer.initialize(self, *args, **kwargs)
-        c_list = self.game.map.characters
-        c_num = len(c_list)
-        p_list = self.game.map.players
-
-        self.total_eye_count = 0
-        for i in range(len(p_list)): self.total_eye_count += len(p_list[i].eyes)
-
-        eye_count = self.total_eye_count
-        self.rd = self.render_state.map.circle(
-            [-1] * c_num, [-1] * c_num,
-            radius=[_.attribute.radius for _ in c_list],
-            line_color=[self._get_line_color(_) for _ in c_list],
-            line_width=[3] * c_num,
-            fill_color=["firebrick"] * c_num,
-            fill_alpha=[_c.attribute.hp / _c.attribute.max_hp for _c in c_list]
-        )
+        super(PlayerRenderer, self).initialize(*args, **kwargs)
         self.rd_detect = self.render_state.map.wedge(
-            [-1] * eye_count, [-1] * eye_count,
-            radius=[1] * eye_count,
-            start_angle=[1] * eye_count,
-            end_angle=[1] * eye_count,
-            fill_color=["blue"] * eye_count, line_color=None, fill_alpha=[0.1] * eye_count)
+            x=[], y=[],
+            radius=[],
+            start_angle=[],
+            end_angle=[],
+            fill_color=[],
+            line_color=None,
+            fill_alpha=[])
 
     def __call__(self):
-        e_list = self.game.map.players[0].eyes
-        p_list = self.game.map.players
-        c_list = self.game.map.characters
-        all_x = [p.attribute.position.x for p in p_list]
-        all_y = [p.attribute.position.y for p in c_list]
-        self.rd.data_source.data['x'] = all_x
-        self.rd.data_source.data['y'] = all_y
-        self.rd.data_source.data['radius'] = [_.attribute.radius for _ in c_list]
+        super(PlayerRenderer, self).__call__()
+        colors = []
+        radius = []
+        start_angles = []
+        end_angles = []
+        xs, ys = [], []
 
-        colors = [None] * self.total_eye_count
-        radius = [None] * self.total_eye_count
-        start_angles = [None] * self.total_eye_count
-        end_angles = [None] * self.total_eye_count
-
-        index = -1
-        for player in p_list:
-            for e in e_list:
-                index += 1
-                start_angles[index] = np.radians(e.angles[0])
-                end_angles[index] = np.radians(e.angles[1])
-                radius[index] = e.sensed_range or 0.0
+        for player in self.game.map.players:
+            x, y = player.attribute.position
+            for e in player.eyes:
+                start_angles.append(np.radians(e.angles[0]))
+                end_angles.append(np.radians(e.angles[1]))
+                radius.append(e.sensed_range or 0.0)
+                xs.append(x)
+                ys.append(y)
 
                 if e.sensed_object is None:
-                    colors[index] = None
+                    colors.append(None)
 
                 else:
                     # npc
                     if type(e.sensed_object) != type(self.game.map.bounds):
-                        colors[index] = "red"
+                        colors.append("red")
                     else:
-                        colors[index] = "grey"
+                        colors.append("grey")
 
         self.rd_detect.data_source.data['fill_color'] = colors
-        self.rd_detect.data_source.data['x'] = [player.attribute.position.x] * len(colors)
-        self.rd_detect.data_source.data['y'] = [player.attribute.position.y] * len(colors)
+        self.rd_detect.data_source.data['x'] = xs
+        self.rd_detect.data_source.data['y'] = ys
         self.rd_detect.data_source.data['radius'] = radius
         self.rd_detect.data_source.data['start_angle'] = start_angles
         self.rd_detect.data_source.data['end_angle'] = end_angles
+        self.rd_detect.data_source.data['fill_alpha'] = [0.1] * len(colors)
