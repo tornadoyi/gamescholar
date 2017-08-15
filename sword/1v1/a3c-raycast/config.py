@@ -30,9 +30,9 @@ config.NUM_PLAYERS = 1
 
 config.NUM_NPC = 1
 
-config.PLAYER_INIT_RADIUS = (0.0, 1.0)
+config.PLAYER_INIT_RADIUS = (0.0, 0.0)
 
-config.NPC_INIT_RADIUS = (0.0, 1.0)
+config.NPC_INIT_RADIUS = 1 / config.MAP_SIZE * 7#(0.15, 0.2)
 
 config.NPC_SKILL_COUNT = 1
 
@@ -95,7 +95,7 @@ config.BASE_NPC = edict(
     direct = Vector2(0, 0),
     speed = 0.1 * config.GAME_PARAMS.fps,
     radius = 0.5,
-    max_hp = 400.0,
+    max_hp = 800.0,
     camp = config.Camp[1],
     skills=config.NPC_SKILL_LIST
 )
