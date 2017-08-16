@@ -97,7 +97,7 @@ class Model(object):
 
         x = tf.expand_dims(self.s, axis=0)
 
-        lstm_size = 256
+        lstm_size = 512
         cell = tf.contrib.rnn.BasicLSTMCell(lstm_size, state_is_tuple=True)
         self.state_in = cell.zero_state(1, tf.float32)
         lstm_outputs, self.state_out = tf.nn.dynamic_rnn(cell,
