@@ -18,7 +18,7 @@ from agent import TrainAgent, PlayAgent
 
 GAME_NAME = game_config.GAME_NAME
 
-LR = 1e-3  # 1e-4 in openai
+LR = 1e-4  # 1e-4 in openai
 UPDATE_STEPS = 20
 GAMMA = 0.9
 ENTROPY_BETA = 0.01
