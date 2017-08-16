@@ -25,10 +25,12 @@ def linear(x, size, name, initializer=None, bias_init=0):
     return tf.matmul(x, w) + b
 
 
-def categorical_sample(logits, d):
+def categorical_sample(logits, d, mask=None):
+    if mask is not None:
+        logits = tf.where(tf.not_equal(mask, 0), logits, -np.inf*tf.ones_like(logits))
+
     value = tf.squeeze(tf.multinomial(logits - tf.reduce_max(logits, [1], keep_dims=True), 1), [1])
     return tf.one_hot(value, d)
-
 
 
 def conv2d(x, num_filters, name, filter_size=(3, 3), stride=(1, 1), pad="SAME", dtype=tf.float32, collections=None):
@@ -77,6 +79,7 @@ class Model(object):
         self.a = tf.placeholder(tf.float32, [None, self.action_size], name="a")
         self.adv = tf.placeholder(tf.float32, [None], name="adv")
         self.r = tf.placeholder(tf.float32, [None], name="r")
+        self.a_mask = tf.placeholder(tf.float32, [None, self.action_size], name="a_mask")
 
         self.batch_size = tf.to_float(tf.shape(self.s)[0])
 
@@ -117,7 +120,7 @@ class Model(object):
         l = tf.nn.relu(linear(l, 256, "vf_l2", normalized_columns_initializer(0.01)))
         self.vf = tf.reshape(linear(l, 1, "value", normalized_columns_initializer(1.0)), [-1])
 
-        self.sample = categorical_sample(self.logits, self.action_size)[0, :]
+        self.sample = categorical_sample(self.logits, self.action_size, self.a_mask)[0, :]
         self.probs = tf.nn.softmax(self.logits)
 
 
@@ -157,8 +160,8 @@ class Model(object):
 
 
 
-    def choose_action(self, sess, s, features):
-        return sess.run([self.sample, self.vf, self.state_out], {self.s: [s], self.state_in: features})
+    def choose_action(self, sess, s, features, a_mask):
+        return sess.run([self.sample, self.vf, self.state_out], {self.s: [s], self.state_in: features, self.a_mask: [a_mask]})
 
 
     def predict_value(self, sess, s, features):

@@ -50,7 +50,8 @@ class TrainAgent(object):
             features = init_features
 
             while True:
-                a, v, next_features = self.ac.choose_action(sess, s, features)
+                a_mask = self.env.serializer.get_action_mask(self.env)
+                a, v, next_features = self.ac.choose_action(sess, s, features, a_mask)
                 s_, r, done, info = self._step(a)
                 if self.render: self.env.render()
 
@@ -177,7 +178,8 @@ class PlayAgent(object):
             features = init_features
 
             while True:
-                a, v, next_features = self.ac.choose_action(sess, s, features)
+                a_mask = self.env.serializer.get_action_mask(self.env)
+                a, v, next_features = self.ac.choose_action(sess, s, features, a_mask)
                 s_, r, done, info = self._step(a)
                 if self.render: self.env.render()
 

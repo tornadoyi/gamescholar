@@ -3,9 +3,10 @@ from easydict import EasyDict as edict
 from gymgame.engine import extension, Vector2
 from gymgame.tinyrpg.sword import config, Serializer, EnvironmentGym, Game
 from gymgame.tinyrpg.framework import Skill, Damage, SingleEmitter
-from gymgame.tinyrpg.framework.render import PlayerRenderer, ModuleRenderer
+from gymgame.tinyrpg.framework.render import Renderer, PlayerRenderer, ModuleRenderer
 from gymgame.engine.geometry import geometry2d as g2d
 from gym import spaces
+from bokeh.plotting import figure
 
 
 
@@ -19,7 +20,9 @@ NUM_EYES = 30
 
 EYE_DYNAMIC_VIEW = np.max(config.MAP_SIZE) * 0.8
 
-EYE_STATIC_VIEW = np.max(config.MAP_SIZE) * 0.1
+EYE_STATIC_VIEW = np.max(config.MAP_SIZE) * 0.2
+
+DIRECT_MASK_RANGE = 1.0
 
 
 config.GAME_PARAMS.fps = 24
@@ -185,10 +188,6 @@ class EnvExtension():
 
 
 
-
-
-
-
 @extension(Serializer)
 class SerializerExtension():
 
@@ -201,6 +200,23 @@ class SerializerExtension():
                Vector2.left,
                Vector2.left + Vector2.up,
                ]
+
+
+    def get_action_mask(self, env):
+        directs = SerializerExtension.DIRECTS
+        map = env.game.map
+        player = map.players[0]
+        src_pos = player.attribute.position
+
+        mask_move = [0.0] * len(directs)
+        for i in range(len(directs)):
+            dst_pos = src_pos + directs[i] * DIRECT_MASK_RANGE
+            can_move = map.in_bounds(dst_pos)
+            mask_move[i] = 1.0 if can_move else 0.0
+
+        mask_skill = [0.0 if player.skill.busy else 1.0]
+
+        return np.array(mask_move + mask_skill)
 
 
     def _deserialize_action(self, data):
@@ -309,10 +325,25 @@ class SerializerExtension():
 
 
 
+
+
+
 @extension(PlayerRenderer)
-class PlayerRenderExtension():
+class PlayerRendererExtension():
     def initialize(self, *args, **kwargs):
         super(PlayerRenderer, self).initialize(*args, **kwargs)
+        self._initialize_eyes()
+        return self._initialize_action_mask()
+
+
+    def __call__(self):
+        super(PlayerRenderer, self).__call__()
+        self._draw_eyes()
+        self._draw_action_mask()
+
+
+
+    def _initialize_eyes(self):
         self.rd_detect = self.render_state.map.wedge(
             x=[], y=[],
             radius=[],
@@ -322,8 +353,8 @@ class PlayerRenderExtension():
             line_color=None,
             fill_alpha=[])
 
-    def __call__(self):
-        super(PlayerRenderer, self).__call__()
+
+    def _draw_eyes(self):
         colors = []
         radius = []
         start_angles = []
@@ -356,3 +387,47 @@ class PlayerRenderExtension():
         self.rd_detect.data_source.data['start_angle'] = start_angles
         self.rd_detect.data_source.data['end_angle'] = end_angles
         self.rd_detect.data_source.data['fill_alpha'] = [0.1] * len(colors)
+
+
+
+    def _initialize_action_mask(self):
+        # create new plot
+        plt = figure(plot_width=200, plot_height=200, title='action mask')
+        plt.xaxis.visible = False
+        plt.xgrid.visible = False
+        plt.yaxis.visible = False
+        plt.ygrid.visible = False
+
+        # set xs xy
+        center = Vector2(1, 1)
+        xs, ys = [], []
+        for d in SerializerExtension.DIRECTS:
+            v = d + center
+            xs.append(v.x)
+            ys.append(v.y)
+
+        # skill
+        xs.append(center.x)
+        ys.append(center.y)
+
+        self.action_mask_xs = xs
+        self.action_mask_ys = ys
+
+        self._rd_mask = plt.rect(
+            self.action_mask_xs, self.action_mask_ys,
+            0.9,
+            0.9,
+            fill_alpha=0.6,
+            color=["silver"] * 10,
+            line_color='silver',
+        )
+
+        return plt
+
+
+    def _draw_action_mask(self):
+        a_mask = self.game.env.serializer.get_action_mask(self.game.env)
+
+        self._rd_mask.data_source.data['x'] = self.action_mask_xs
+        self._rd_mask.data_source.data['y'] = self.action_mask_ys
+        self._rd_mask.data_source.data['fill_color'] = ['green' if v > 0 else 'red' for v in a_mask]
