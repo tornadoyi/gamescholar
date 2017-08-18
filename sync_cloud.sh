@@ -1,14 +1,18 @@
-#!/usr/bin/expect -f
+#!/bin/bash
 
-set host "120.92.33.192"
-set username "guyi"
-set password "123456"
-set path "/home/guyi/Projects/gamescholar"
+host=120.92.33.192
+username=guyi
+password=123456
+path=/home/guyi/Projects/
 
 
-spawn rsync --progress -r --exclude .* --exclude *.pyc --exclude __pycache__ --exclude log ./ ${username}@${host}:${path}
+dstpath=$path`pwd | awk -F '/' '{print $NF}'`
 
-expect "*password:"
-send "${password}\r"
+expect -c "
+    spawn rsync --progress -r --exclude .* --exclude *.pyc --exclude __pycache__ --exclude log ./ ${username}@${host}:${dstpath}
 
-expect eof%
+    expect \"*password:\"
+    send \"${password}\r\"
+
+    expect eof%
+"
