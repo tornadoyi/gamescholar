@@ -38,7 +38,7 @@ class TrainAgent(object):
     def __call__(self, sess):
         self.sess = sess
         steps = 1
-        buffer_s, buffer_a, buffer_r, buffer_v = [], [], [], []
+        buffer_s, buffer_a, buffer_r, buffer_v, buffer_m = [], [], [], [], []
 
         # pull model to local first
         self.ac.pull(sess)
@@ -59,6 +59,7 @@ class TrainAgent(object):
                 buffer_a.append(a)
                 buffer_r.append(r)
                 buffer_v.append(v)
+                buffer_m.append(a_mask)
 
                 if steps % self.update_nsteps == 0 or done:  # update global and assign to local net
 
@@ -80,7 +81,8 @@ class TrainAgent(object):
                         self.ac.a: np.asarray(buffer_a),
                         self.ac.adv: batch_adv,
                         self.ac.r: batch_r,
-                        self.ac.state_in: init_features
+                        self.ac.state_in: init_features,
+                        self.ac.a_mask: np.asarray(buffer_m)
                     }
 
                     summary = self.ac.learn(sess, [self.ac.summary_op], feed_dict)[0]
@@ -89,7 +91,7 @@ class TrainAgent(object):
                     self.ac.pull(sess)
 
                     # clear buffer
-                    buffer_s, buffer_a, buffer_r, buffer_v = [], [], [], []
+                    buffer_s, buffer_a, buffer_r, buffer_v, buffer_m = [], [], [], [], []
 
 
                     # update init features

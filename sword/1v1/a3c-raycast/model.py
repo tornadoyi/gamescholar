@@ -114,13 +114,15 @@ class Model(object):
         #l = tf.nn.relu(linear(l, 1024, "pi_l1", normalized_columns_initializer(0.01)))
         l = tf.nn.relu(linear(l, 512, "pi_l2", normalized_columns_initializer(0.01)))
         self.logits = linear(l, self.action_size, "action", normalized_columns_initializer(0.01))
+        self.valid_actions = linear(l, self.action_size, "valid_action", normalized_columns_initializer(0.01))
+
 
         l = x
         #l = tf.nn.relu(linear(l, 512, "vf_l1", normalized_columns_initializer(0.01)))
         l = tf.nn.relu(linear(l, 256, "vf_l2", normalized_columns_initializer(0.01)))
         self.vf = tf.reshape(linear(l, 1, "value", normalized_columns_initializer(1.0)), [-1])
 
-        self.sample = categorical_sample(self.logits, self.action_size, self.a_mask)[0, :]
+        self.sample = categorical_sample(self.logits, self.action_size)[0, :]
         self.probs = tf.nn.softmax(self.logits)
 
 
@@ -131,10 +133,12 @@ class Model(object):
         log_prob_tf = tf.nn.log_softmax(self.logits)
         self.pi_loss = - tf.reduce_sum(tf.reduce_sum(log_prob_tf * self.a, [1]) * self.adv)
 
+        self.valid_loss = 0.5 * tf.reduce_sum(tf.square(self.a_mask - self.valid_actions))
+
         self.vf_loss = 0.5 * tf.reduce_sum(tf.square(self.vf - self.r))
         self.entropy = - tf.reduce_sum(self.probs * log_prob_tf)
 
-        self.loss = self.pi_loss + 0.5 * self.vf_loss - self.entropy * self.entropy_beta
+        self.loss = self.pi_loss + 0.5 * self.valid_loss +  0.5 * self.vf_loss - self.entropy * self.entropy_beta
 
         self.grads = tf.gradients(self.loss, self.model_vars)
 
@@ -152,6 +156,7 @@ class Model(object):
         summary_ops = [
             tf.summary.scalar("model/pi_loss", self.pi_loss / self.batch_size),
             tf.summary.scalar("model/value_loss", self.vf_loss / self.batch_size),
+            tf.summary.scalar("model/valid_loss", self.valid_loss / self.batch_size),
             tf.summary.scalar("model/entropy", self.entropy / self.batch_size),
             tf.summary.scalar("model/grad_norm", tf.global_norm(self.grads)),
         ]

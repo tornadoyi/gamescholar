@@ -14,7 +14,7 @@ GAME_NAME = config.GAME_NAME
 
 config.BOKEH_MODE = "notebook"  # you need run `bokeh serve` firstly
 
-config.MAP_SIZE = Vector2(30, 30)
+config.MAP_SIZE = Vector2(15, 15)
 
 NUM_EYES = 30
 
