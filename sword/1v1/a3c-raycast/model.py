@@ -114,7 +114,7 @@ class Model(object):
         #l = tf.nn.relu(linear(l, 1024, "pi_l1", normalized_columns_initializer(0.01)))
         l = tf.nn.relu(linear(l, 512, "pi_l2", normalized_columns_initializer(0.01)))
         self.logits = linear(l, self.action_size, "action", normalized_columns_initializer(0.01))
-        self.valid_actions = linear(l, self.action_size, "valid_action", normalized_columns_initializer(0.01))
+        self.valid_actions = tf.nn.sigmoid(linear(l, self.action_size, "valid_action", normalized_columns_initializer(0.01)))
 
 
         l = x
