@@ -25,11 +25,11 @@ GAME_NAME = 'SW1-1-VS-N-v0'
 # ]]
 
 
-MAP_BOUNDS = Bounds2(Vector2(0, 0), Vector2(80, 80))
+VIEW_RANGE = 1200
+
+MAP_BOUNDS = Bounds2(Vector2(0, 0), Vector2(VIEW_RANGE, VIEW_RANGE))
 
 NUM_EYES = 30
-
-VIEW_RANGE = 1200
 
 EYE_DYNAMIC_VIEW = VIEW_RANGE * 0.8
 
@@ -160,6 +160,7 @@ class Env():
 
                 # see dynamic object
                 if distance[index] <= EYE_DYNAMIC_VIEW:
+                    print(e.angles, npcs[index].x, npcs[index].y, player_pos)
                     e.reset(npcs[index], distance[index])
 
                 # see nothing
@@ -214,8 +215,8 @@ class Renderer(RealWorldDashboard):
         x, y = player.base.x, player.base.y
         eyes = self.env.userdata.player.eyes
         for e in eyes:
-            start_angles.append(np.radians(e.angles[0]))
-            end_angles.append(np.radians(e.angles[1]))
+            start_angles.append(np.radians(360.0-e.angles[1]))
+            end_angles.append(np.radians(360.0-e.angles[0]))
             radius.append(e.sensed_range or 0.0)
             xs.append(x)
             ys.append(y)
@@ -229,11 +230,6 @@ class Renderer(RealWorldDashboard):
                     colors.append("red")
                 else:
                     colors.append("grey")
-
-        colors[0] = 'red'
-        colors[10] = 'green'
-        colors[15] = 'blue'
-        colors[20] = 'yellow'
 
         self.rd_detect.data_source.data['fill_color'] = colors
         self.rd_detect.data_source.data['x'] = xs
