@@ -160,7 +160,6 @@ class Env():
 
                 # see dynamic object
                 if distance[index] <= EYE_DYNAMIC_VIEW:
-                    print(e.angles, npcs[index].x, npcs[index].y, player_pos)
                     e.reset(npcs[index], distance[index])
 
                 # see nothing
