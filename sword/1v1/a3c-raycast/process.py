@@ -58,6 +58,7 @@ class Process(object):
 
 def main(_):
     import option
+    option.init()
     process = Process(option.args, option.cluster)
     try:
         process()

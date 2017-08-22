@@ -7,6 +7,8 @@ import logging
 import argparse
 from multiprocessing import cpu_count
 
+# ==================================== args ==================================== #
+
 def str2bool(v):
   return v.lower() in ("yes", "true", "t", "1", True)
 
@@ -32,23 +34,35 @@ parser.add_argument('--auto-save', type=str2bool, default=True, help="save autom
 parser.add_argument('--save-model-secs', type=int, default=30, help="save model per seconds")
 parser.add_argument('--save-summaries-secs', type=int, default=30, help="save summaries per seconds")
 
-args = parser.parse_args()
+args = None
 
-arg_dict = {}
-for a in parser._actions:
-    if not hasattr(args, a.dest): continue
-    v = getattr(args, a.dest)
-    arg_dict[a.option_strings[-1]] = v
+arg_dict = None
+
+def init():
+    global args, arg_dict
+    args = parser.parse_args()
+    _init_log(args)
+
+    arg_dict = {}
+    for a in parser._actions:
+        if not hasattr(args, a.dest): continue
+        v = getattr(args, a.dest)
+        arg_dict[a.option_strings[-1]] = v
+
+    return args
 
 
-# cluster
+
+
+# ==================================== cluster ==================================== #
+
 PS_PORT = 12222
 
-WORKER_PORT = 20000
+WORKER_START_PORT = 20000
 
-EXTRA_WORKER_COUNT = 10
+MAX_WORKER_COUNT = 100
 
-def create_hosts(ip, port, num):
+def _create_hosts(ip, port, num):
     hosts = []
     for i in range(num):
         hosts.append('{}:{}'.format(ip, port))
@@ -56,34 +70,47 @@ def create_hosts(ip, port, num):
     return hosts
 
 
-cluster = {'ps': create_hosts('127.0.0.1', PS_PORT, 1),
-           'worker': create_hosts('127.0.0.1', WORKER_PORT, args.num_workers + EXTRA_WORKER_COUNT)}
+cluster = {
+    'ps': _create_hosts('127.0.0.1', PS_PORT, 1),
+    'worker': _create_hosts('127.0.0.1', WORKER_START_PORT, MAX_WORKER_COUNT)
+}
 
 
 
 
-# log
-if not os.path.exists(args.log_dir): os.mkdir(args.log_dir)
+# ==================================== log ==================================== #
 
-ALL_LOG_DIR = os.path.join(args.log_dir, 'all.log')
+ALL_LOG_DIR = None
 
-ERROR_LOG_DIR = os.path.join(args.log_dir, 'error.log')
+ERROR_LOG_DIR = None
 
-formatter = logging.Formatter(
-    "%(levelname)s -{} %(asctime)s: %(message)s".format(args.index),
-    '%H:%M:%S'
-)
+def _init_log(args):
+    global ALL_LOG_DIR, ERROR_LOG_DIR
 
-hdl_all = logging.FileHandler(ALL_LOG_DIR)
-hdl_error = logging.FileHandler(ERROR_LOG_DIR)
+    if not os.path.exists(args.log_dir): os.mkdir(args.log_dir)
 
-hdl_all.setFormatter(formatter)
-hdl_error.setFormatter(formatter)
+    ALL_LOG_DIR = os.path.join(args.log_dir, 'all.log')
 
-hdl_all.setLevel(logging.DEBUG)
-hdl_error.setLevel(logging.ERROR)
+    ERROR_LOG_DIR = os.path.join(args.log_dir, 'error.log')
 
-logging.getLogger().addHandler(hdl_all)
-logging.getLogger().addHandler(hdl_error)
+    formatter = logging.Formatter(
+        "%(levelname)s -{} %(asctime)s: %(message)s".format(args.index),
+        '%H:%M:%S'
+    )
+
+    hdl_all = logging.FileHandler(ALL_LOG_DIR)
+    hdl_error = logging.FileHandler(ERROR_LOG_DIR)
+
+    hdl_all.setFormatter(formatter)
+    hdl_error.setFormatter(formatter)
+
+    hdl_all.setLevel(logging.DEBUG)
+    hdl_error.setLevel(logging.ERROR)
+
+    logging.getLogger().addHandler(hdl_all)
+    logging.getLogger().addHandler(hdl_error)
+
+    logging.getLogger().setLevel(logging.INFO)
+
 
 
