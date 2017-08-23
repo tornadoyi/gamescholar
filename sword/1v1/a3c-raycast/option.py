@@ -5,6 +5,7 @@ handle cmd line option
 import os
 import logging
 import argparse
+from easydict import EasyDict as edict
 from multiprocessing import cpu_count
 
 # ==================================== args ==================================== #
@@ -36,19 +37,12 @@ parser.add_argument('--save-summaries-secs', type=int, default=30, help="save su
 
 args = None
 
-arg_dict = None
 
 def init():
-    global args, arg_dict
-    args = parser.parse_args()
+    global args
+    t_args = parser.parse_args()
+    args = edict(parser.parse_args().__dict__)
     _init_log(args)
-
-    arg_dict = {}
-    for a in parser._actions:
-        if not hasattr(args, a.dest): continue
-        v = getattr(args, a.dest)
-        arg_dict[a.option_strings[-1]] = v
-
     return args
 
 

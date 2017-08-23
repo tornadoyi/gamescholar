@@ -49,7 +49,10 @@ class TrainAgent(object):
             init_features = self.ac.get_initial_features(sess)
             features = init_features
 
+            # train one game
             while True:
+                yield None
+
                 a_mask = self.env.serializer.get_action_mask(self.env)
                 a, v, next_features = self.ac.choose_action(sess, s, features, a_mask)
                 s_, r, done, info = self._step(a)
@@ -180,6 +183,8 @@ class PlayAgent(object):
             features = init_features
 
             while True:
+                yield None
+
                 a_mask = self.env.serializer.get_action_mask(self.env)
                 a, v, next_features = self.ac.choose_action(sess, s, features, a_mask)
                 s_, r, done, info = self._step(a)
