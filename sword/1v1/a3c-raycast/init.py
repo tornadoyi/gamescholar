@@ -58,17 +58,14 @@ class ProcessManager():
         return p
 
     def update(self, block=True):
-        try:
-            s = self.queue.get(block)
-            self.processes[s.name].state = s
-            if s.error is not None:
-                self.clean()
-                raise Exception(s.error)
-            else:
-                p = self.processes[s.name].process
-                logging.info('process {} init finish'.format(s.name))
-        except:
-            return
+        s = self.queue.get(block)
+        self.processes[s.name].state = s
+        if s.error is not None:
+            self.clean()
+            raise Exception(s.error)
+        else:
+            p = self.processes[s.name].process
+            logging.info('process {} init finish'.format(s.name))
 
 
     def send(self, name, ready, error=None):
@@ -80,8 +77,8 @@ class ProcessManager():
 
 
     def clean(self):
-        for p in self.processes:
-            p.terminate()
+        for k, v in self.processes.items():
+            v.process.terminate()
 
 
     def update_kill_command(self, log_dir):

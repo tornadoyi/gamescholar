@@ -111,8 +111,6 @@ class A3C(object):
             state = tf.train.get_checkpoint_state(args.log_dir)
             saver.restore(sess, state.model_checkpoint_path)
 
-
-        #sess = sess.as_default()
         self.generator = worker(sess)
 
 
