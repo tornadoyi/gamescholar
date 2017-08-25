@@ -28,7 +28,7 @@ parser.add_argument('--worker-path', default='', type=str, help='worker file pat
 
 
 # extension args
-parser.add_argument('--mode', default='train', type=str, choices=['train', 'play'], help='train, play')
+parser.add_argument('--mode', default='train', type=str, choices=['train', 'play-online', 'play-offline'], help='train, play-online, play-offline')
 parser.add_argument('--render', type=str2bool, default=False, help="Need Render")
 parser.add_argument('--auto-save', type=str2bool, default=True, help="save automatically")
 parser.add_argument('--save-model-secs', type=int, default=30, help="save model per seconds")
@@ -37,7 +37,7 @@ parser.add_argument('--save-summaries-secs', type=int, default=30, help="save su
 args = None
 
 
-def init(log_tag, clean_log=False):
+def init(log_tag='default', clean_log=False):
     global args
     args = edict(parser.parse_args().__dict__)
     _init_log(log_tag, clean_log)

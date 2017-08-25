@@ -30,6 +30,9 @@ class A3C(object):
         self.server = server
         self.args = args
 
+        online = args.mode in ['train', 'play-online']
+
+        # config
         config = tf.ConfigProto(device_filters=["/job:ps", args.worker_device])
 
         # summary writer
@@ -40,17 +43,36 @@ class A3C(object):
         N_S = env.observation_space.shape
         N_A = env.action_space.n
 
-        # model
+        # optimizer
         optimizer = tf.train.AdamOptimizer(LR)
-        with tf.device(tf.train.replica_device_setter(1, worker_device=args.worker_device)):
+
+        # model
+        def create_global_model():
             with tf.variable_scope("global"):
                 g_model = Model(N_S, N_A, optimizer, ENTROPY_BETA)
                 global_step = tf.Variable(0.0, trainable=False, dtype=tf.float64)
                 variables_to_save = g_model.var_list + [global_step]
 
-        with tf.device(args.worker_device):
+            return g_model, global_step, variables_to_save
+
+        def create_local_model(g_model):
             with tf.variable_scope("local"):
                 model = Model(N_S, N_A, optimizer, ENTROPY_BETA, g_model.model_vars)
+
+            return model
+
+
+        if online:
+            with tf.device(tf.train.replica_device_setter(1, worker_device=args.worker_device)):
+                g_model, global_step, variables_to_save = create_global_model()
+
+            with tf.device(args.worker_device):
+                model = create_local_model(g_model)
+
+        else:
+            g_model, global_step, variables_to_save = create_global_model()
+            model = g_model
+
 
         # agent
         if args.mode == 'play':
@@ -60,8 +82,6 @@ class A3C(object):
 
         # saver
         saver = FastSaver(variables_to_save)
-        save_model_secs = args.save_model_secs if args.auto_save else None
-        save_summaries_secs = args.save_summaries_secs if args.auto_save else None
 
         # initializer
         init_all_op = tf.global_variables_initializer()
@@ -70,26 +90,30 @@ class A3C(object):
             logging.info("Initializing all parameters.")
             ses.run(init_all_op)
 
-        sv = tf.train.Supervisor(is_chief=(args.index == 0),
-                                 logdir=args.log_dir,
-                                 saver=saver,
-                                 summary_op=None,
-                                 init_op=tf.variables_initializer(variables_to_save),
-                                 init_fn=init_fn,
-                                 summary_writer=summary_writer,
-                                 ready_op=tf.report_uninitialized_variables(variables_to_save),
-                                 global_step=global_step,
-                                 save_model_secs=save_model_secs,
-                                 save_summaries_secs=save_summaries_secs)
+
+        if online:
+            sv = tf.train.Supervisor(is_chief=(args.index == 0),
+                                     logdir=args.log_dir,
+                                     saver=saver,
+                                     summary_op=None,
+                                     init_op=tf.variables_initializer(variables_to_save),
+                                     init_fn=init_fn,
+                                     summary_writer=summary_writer,
+                                     ready_op=tf.report_uninitialized_variables(variables_to_save),
+                                     global_step=global_step,
+                                     save_model_secs=args.save_model_secs,
+                                     save_summaries_secs=args.save_summaries_secs)
+
+            sess = sv.prepare_or_wait_for_session(server.target, config=config)
+
+        else:
+            sess = tf.Session()
+            state = tf.train.get_checkpoint_state(args.log_dir)
+            saver.restore(sess, state.model_checkpoint_path)
 
 
-        def loop():
-            with sv.managed_session(server.target, config=config) as sess, sess.as_default():
-                logging.info("Starting training at step=%d", sess.run(global_step))
-                g = worker(sess)
-                while True: yield next(g)
-
-        self.generator = loop()
+        #sess = sess.as_default()
+        self.generator = worker(sess)
 
 
     def __call__(self, *args, **kwargs): next(self.generator)
