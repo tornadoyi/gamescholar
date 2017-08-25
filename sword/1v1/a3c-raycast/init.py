@@ -17,7 +17,7 @@ def listen_shutdown(callback=None):
 
     import sys, signal
     def shutdown(signal, frame):
-        print('process {} received signal {}: exiting'.format(os.getpid(), signal))
+        logging.info('process {} received signal {}: exiting'.format(os.getpid(), signal))
         if callback is not None: callback()
         sys.exit(128 + signal)
 
@@ -104,7 +104,7 @@ class Process(object):
 
     def _send_state(self, **kwargs):
         if self._state is None: return
-        self._state.send(index=self._args.index, **kwargs)
+        self._state.send(name=self._args.name, **kwargs)
 
 
 
@@ -115,39 +115,54 @@ class ProcessManager():
 
     def get_process(self, index): return self.processes[index]
 
-    def create_process(self, name, args, wait=False):
+    def create_process(self, args, cluster, wait=False):
+        if args.name in self.processes: raise Exception('repeated process name {}'.format(args.name))
+
+        def worker(args, cluster, pmgr):
+            option.init(args.name)
+            Process(args, cluster, pmgr)()
+
+        # cache sys args
+        argv = sys.argv
+        sys.argv = [sys.executable] + option.args_to_argv(args)
+
         p = multiprocessing.Process(
-            name=name,
-            target=lambda *args, **kwargs: Process(*args, **kwargs)(),
-            args=(args, option.cluster, self)
+            name=args.name,
+            target=worker,
+            args=(args, cluster, self)
         )
+        p.daemon = True
         p.start()
-        self.processes[args.index] = edict(process=p, state=None)
+        self.processes[args.name] = edict(process=p, state=None)
+
+        # restore argv
+        sys.argv = argv
+
+        # update kill command
+        self.update_kill_command(args.log_dir)
 
         if wait:
-            data = self.processes[args.index]
+            data = self.processes[args.name]
             while data.state is None: self.update()
         return p
-
-
 
     def update(self, block=True):
         try:
             s = self.queue.get(block)
-            self.processes[s.index].state = s
+            self.processes[s.name].state = s
             if s.error is not None:
                 self.clean()
                 raise Exception(s.error)
             else:
-                p = self.processes[s.index].process
-                logging.info('process {} init finish'.format(p.name))
+                p = self.processes[s.name].process
+                logging.info('process {} init finish'.format(s.name))
         except:
             return
 
 
-    def send(self, index, ready, error=None):
+    def send(self, name, ready, error=None):
         self.queue.put(edict(
-            index = index,
+            name = name,
             ready = ready,
             error = error
         ))
@@ -158,13 +173,19 @@ class ProcessManager():
             p.terminate()
 
 
-def init():
-    # init option
-    option.init()
+    def update_kill_command(self, log_dir):
+        # create stop command
+        with open(os.path.join(log_dir, 'kill.sh'), 'w') as f:
+            pids = '{} '.format(os.getpid())
+            for k, v in self.processes.items(): pids += '{} '.format(v.process.pid)
+            f.write('#!/bin/sh \n' +
+                    'kill -9 {}'.format(pids))
 
-    # clear start log
-    if os.path.exists(option.ALL_LOG_DIR): os.remove(option.ALL_LOG_DIR)
-    if os.path.exists(option.ERROR_LOG_DIR): os.remove(option.ERROR_LOG_DIR)
+
+def init():
+
+    # init option
+    option.init('init', clean_log=True)
 
     # parse args
     args = option.args
@@ -180,23 +201,23 @@ def init():
     manager = ProcessManager()
 
     # ps
-    argv = copy.deepcopy(args)
-    argv.job_name = 'ps'
-    manager.create_process('ps', argv, wait=True)
+    pargs = copy.deepcopy(args)
+    pargs.name = pargs.job_name = 'ps'
+    manager.create_process(pargs, option.cluster, wait=True)
 
 
     # workers
     for i in range(args.num_workers):
-        argv = copy.deepcopy(args)
-        name = 'worker_{}'.format(i)
-        argv.index = i
-        argv.job_name = 'worker'
-        manager.create_process(name, argv, wait=True)
-
+        pargs = copy.deepcopy(args)
+        pargs.name = 'worker_{}'.format(i)
+        pargs.index = i
+        pargs.job_name = 'worker'
+        manager.create_process(pargs, option.cluster, wait=True)
 
 
     # finish
-    logging.info('finish init and exit')
+    logging.info('Finish all process init')
+    while True: time.sleep(1.0)
 
 
 

@@ -25,7 +25,6 @@ parser.add_argument('--num-workers', default=1, type=num_worker_type, help='Numb
 parser.add_argument('--backend', default='cpu', type=str, choices=['cpu', 'gpu'], help='cpu, gpu')
 parser.add_argument('--log-dir', type=str, default="./log", help="Log directory path")
 parser.add_argument('--worker-path', default='', type=str, help='worker file path for load')
-parser.add_argument('--session-name', type=str, default="project", help="session name")
 
 
 # extension args
@@ -38,14 +37,21 @@ parser.add_argument('--save-summaries-secs', type=int, default=30, help="save su
 args = None
 
 
-def init():
+def init(log_tag, clean_log=False):
     global args
-    t_args = parser.parse_args()
     args = edict(parser.parse_args().__dict__)
-    _init_log(args)
+    _init_log(log_tag, clean_log)
     return args
 
 
+
+def args_to_argv(args):
+    argv = []
+    for a in parser._actions:
+        if not hasattr(args, a.dest): continue
+        v = getattr(args, a.dest)
+        argv.append('{}={}'.format(a.option_strings[-1], v))
+    return argv
 
 
 # ==================================== cluster ==================================== #
@@ -78,7 +84,7 @@ ALL_LOG_DIR = None
 
 ERROR_LOG_DIR = None
 
-def _init_log(args):
+def _init_log(log_tag, clean_log):
     global ALL_LOG_DIR, ERROR_LOG_DIR
 
     if not os.path.exists(args.log_dir): os.mkdir(args.log_dir)
@@ -87,20 +93,36 @@ def _init_log(args):
 
     ERROR_LOG_DIR = os.path.join(args.log_dir, 'error.log')
 
+    # clear start log
+    if clean_log:
+        if os.path.exists(ALL_LOG_DIR): os.remove(ALL_LOG_DIR)
+        if os.path.exists(ERROR_LOG_DIR): os.remove(ERROR_LOG_DIR)
+
+
+    # clear handlers
+    logger = logging.getLogger()
+    for hdl in [hdl for hdl in logger.handlers]: logger.removeHandler(hdl)
+
+
+    # set formatter
     formatter = logging.Formatter(
-        "%(levelname)s -{} %(asctime)s: %(message)s".format(args.index),
+        "%(levelname)s -{} %(asctime)s: %(message)s".format(log_tag),
         '%H:%M:%S'
     )
 
+    # handler
     hdl_all = logging.FileHandler(ALL_LOG_DIR)
     hdl_error = logging.FileHandler(ERROR_LOG_DIR)
 
+    # formater
     hdl_all.setFormatter(formatter)
     hdl_error.setFormatter(formatter)
 
-    hdl_all.setLevel(logging.DEBUG)
+    # level
+    hdl_all.setLevel(logging.INFO)
     hdl_error.setLevel(logging.ERROR)
 
+    # logger
     logging.getLogger().addHandler(hdl_all)
     logging.getLogger().addHandler(hdl_error)
 
