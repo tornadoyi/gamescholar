@@ -86,9 +86,8 @@ class A3C(object):
         def loop():
             with sv.managed_session(server.target, config=config) as sess, sess.as_default():
                 logging.info("Starting training at step=%d", sess.run(global_step))
-                while True:
-                    worker(sess)
-                    yield None
+                g = worker(sess)
+                while True: yield next(g)
 
         self.generator = loop()
 
