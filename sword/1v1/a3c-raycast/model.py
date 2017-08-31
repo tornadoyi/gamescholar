@@ -84,7 +84,8 @@ class Model(object):
         self.batch_size = tf.to_float(tf.shape(self.s)[0])
 
         # create network
-        self._create_network()
+        #self._create_lstm_fc()
+        self._create_lstm_resnet()
 
         # create loss
         self._create_loss()
@@ -96,7 +97,7 @@ class Model(object):
         self.var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, tf.get_variable_scope().name)
 
 
-    def _create_network(self):
+    def _create_lstm_fc(self):
 
         x = tf.expand_dims(self.s, axis=0)
 
@@ -112,21 +113,74 @@ class Model(object):
 
         l = x
         #l = tf.nn.relu(linear(l, 1024, "pi_l1", normalized_columns_initializer(0.01)))
-        l = tf.nn.relu(linear(l, 512, "pi_l2", normalized_columns_initializer(0.01)))
-        self.logits = linear(l, self.action_size, "action", normalized_columns_initializer(0.01))
-        self.valid_actions = tf.nn.sigmoid(linear(l, self.action_size, "valid_action", normalized_columns_initializer(0.01)))
+        in_action = tf.nn.relu(linear(l, 512, "pi_l2", normalized_columns_initializer(0.01)))
 
 
         l = x
-        #l = tf.nn.relu(linear(l, 512, "vf_l1", normalized_columns_initializer(0.01)))
-        l = tf.nn.relu(linear(l, 256, "vf_l2", normalized_columns_initializer(0.01)))
-        self.vf = tf.reshape(linear(l, 1, "value", normalized_columns_initializer(1.0)), [-1])
+        # l = tf.nn.relu(linear(l, 1024, "vf_l1", normalized_columns_initializer(0.01)))
+        in_value = tf.nn.relu(linear(l, 256, "vf_l2", normalized_columns_initializer(0.01)))
 
+        self._create_logit_value(in_action, in_value)
+
+
+
+    def _create_lstm_resnet(self):
+        x = tf.expand_dims(self.s, axis=0)
+
+        lstm_size = 256
+        cell = tf.contrib.rnn.BasicLSTMCell(lstm_size, state_is_tuple=True)
+        self.state_in = cell.zero_state(1, tf.float32)
+        lstm_outputs, self.state_out = tf.nn.dynamic_rnn(cell,
+                                                         x,
+                                                         initial_state=self.state_in,
+                                                         time_major=False,
+                                                         )
+        x = tf.reshape(lstm_outputs, [-1, lstm_size])
+
+        chunk_index = 0
+        def resnet_chunck(input, count):
+            nonlocal chunk_index
+            chunk_index += 1
+            size = input.shape.as_list()[-1]
+            l = input
+            for i in range(count):
+                name = "c_{}_{}".format(chunk_index, i)
+                l = linear(l, size, name, normalized_columns_initializer(0.01))
+                if i < count-1:
+                    l = tf.nn.relu(l)
+
+            # add op
+            l = tf.nn.relu(l + input)
+            return l
+
+
+        l = tf.nn.relu(linear(x, 1024, "fc_s_1", normalized_columns_initializer(0.01)))
+        l = resnet_chunck(l, 3)
+        l = tf.nn.relu(linear(l, 512, "fc_s_2", normalized_columns_initializer(0.01)))
+        l = resnet_chunck(l, 4)
+        l = tf.nn.relu(linear(l, 256, "fc_s_3", normalized_columns_initializer(0.01)))
+        l = resnet_chunck(l, 6)
+
+        self._create_logit_value(l, l)
+
+
+
+    def _create_logit_value(self, in_action, in_value):
+        # logits
+        self.logits = linear(in_action, self.action_size, "action", normalized_columns_initializer(0.01))
+
+        # valid action
+        self.valid_actions = linear(in_action, self.action_size, "valid_action", normalized_columns_initializer(0.01))
+
+        # value function
+        self.vf = tf.reshape(linear(in_value, 1, "value", normalized_columns_initializer(1.0)), [-1])
+
+        # samples and probs
         self.sample = categorical_sample(self.logits, self.action_size)[0, :]
         self.probs = tf.nn.softmax(self.logits)
 
-
         self.model_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, tf.get_variable_scope().name)
+
 
 
     def _create_loss(self):
