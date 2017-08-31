@@ -73,7 +73,7 @@ class TrainAgent(object):
 
                     rewards_plus_v = np.asarray(buffer_r + [v_])
                     #batch_r = discount(rewards_plus_v, self.gamma)
-                    batch_r = discount(rewards_plus_v, self.gamma)[:-1]# reverse discount reward
+                    batch_r = discount(rewards_plus_v, self.gamma)[:-1]
                     delta_t = rewards + self.gamma * vpred_t[1:] - vpred_t[:-1]
                     # this formula for the advantage comes "Generalized Advantage Estimation":
                     # https://arxiv.org/abs/1506.02438
