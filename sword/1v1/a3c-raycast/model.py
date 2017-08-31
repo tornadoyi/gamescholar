@@ -160,8 +160,24 @@ class Model(object):
         l = resnet_chunck(l, 4)
         l = tf.nn.relu(linear(l, 256, "fc_s_3", normalized_columns_initializer(0.01)))
         l = resnet_chunck(l, 6)
+        x = l
 
-        self._create_logit_value(l, l)
+        # action network
+        l = x
+        l = tf.nn.relu(linear(l, 128, "fc_s_a_1", normalized_columns_initializer(0.01)))
+        l = resnet_chunck(l, 8)
+        l = tf.nn.relu(linear(l, 64, "fc_s_a_2", normalized_columns_initializer(0.01)))
+        in_action = resnet_chunck(l, 10)
+
+
+        # value network
+        l = x
+        l = tf.nn.relu(linear(l, 64, "fc_s_f_1", normalized_columns_initializer(0.01)))
+        l = resnet_chunck(l, 8)
+        l = tf.nn.relu(linear(l, 32, "fc_s_f_2", normalized_columns_initializer(0.01)))
+        in_value = resnet_chunck(l, 10)
+
+        self._create_logit_value(in_action, in_value)
 
 
 
