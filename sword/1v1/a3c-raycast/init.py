@@ -24,7 +24,6 @@ class ProcessManager():
         self.queue = multiprocessing.Queue()
         self.processes = {}
 
-    def get_process(self, index): return self.processes[index]
 
     def create_process(self, args, cluster, wait=False):
         if args.name in self.processes: raise Exception('repeated process name {}'.format(args.name))
@@ -44,7 +43,7 @@ class ProcessManager():
         )
         p.daemon = True
         p.start()
-        self.processes[args.name] = edict(process=p, state=None)
+        self.processes[args.name] = edict(process=p, args=args, state=None)
 
         # restore argv
         sys.argv = argv
@@ -54,26 +53,44 @@ class ProcessManager():
 
         if wait:
             data = self.processes[args.name]
-            while data.state is None: self.update()
+            while data.state is None: self._update()
         return p
 
-    def update(self, block=True):
+
+    def join(self, sleep=1.0):
+        while True:
+            alive_worker = False
+            for _, p in self.processes.items():
+                if p.args.job_name != 'worker': continue
+                if not p.process.is_alive(): continue
+                alive_worker = True
+                break
+
+            if not alive_worker:
+                self.clean()
+                break
+            else:
+                time.sleep(sleep)
+
+
+    def send(self, name, state, error=None):
+        self.queue.put(edict(
+            name = name,
+            state = state,
+            error = error
+        ))
+
+    def _update(self, block=True):
         s = self.queue.get(block)
-        self.processes[s.name].state = s
+        p = self.processes[s.name]
+        p.state = s.state
+        p.error = s.error
+
         if s.error is not None:
             self.clean()
             raise Exception(s.error)
         else:
-            p = self.processes[s.name].process
-            logging.info('process {} init finish'.format(s.name))
-
-
-    def send(self, name, ready, error=None):
-        self.queue.put(edict(
-            name = name,
-            ready = ready,
-            error = error
-        ))
+            logging.info('process {} {}'.format(s.name, p.state))
 
 
     def clean(self):
@@ -124,9 +141,9 @@ def init():
 
 
     # finish
-    logging.info('Finish all process init')
-    while True: time.sleep(1.0)
-
+    logging.info('Finish all processes init')
+    manager.join()
+    logging.info('All processes end')
 
 
 if __name__ == '__main__':

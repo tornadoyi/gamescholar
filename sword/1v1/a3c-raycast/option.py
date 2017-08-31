@@ -34,6 +34,8 @@ parser.add_argument('--auto-save', type=str2bool, default=True, help="save autom
 parser.add_argument('--save-model-secs', type=int, default=30, help="save model per seconds")
 parser.add_argument('--save-summaries-secs', type=int, default=30, help="save summaries per seconds")
 
+
+
 args = None
 
 

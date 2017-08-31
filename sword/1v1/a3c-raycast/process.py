@@ -24,10 +24,10 @@ def listen_shutdown(callback=None):
 
 class Process(object):
 
-    def __init__(self, args, cluster, state=None):
+    def __init__(self, args, cluster, manager=None):
         self._args = args
         self._cluster = cluster
-        self._state = state
+        self._manager = manager
         listen_shutdown()
 
 
@@ -36,7 +36,7 @@ class Process(object):
             self._initialize()
 
         except Exception as e:
-            self._send_state(ready=False, error=e)
+            self._notify(state='running', error=e)
             logging.exception(e)
 
 
@@ -63,21 +63,26 @@ class Process(object):
         server = tf.train.Server(self._cluster, job_name=args.job_name, task_index=args.index, config=config)
         if args.job_name == "ps":
             # send state
-            self._send_state(ready=True)
+            self._notify(state='running')
 
             # wait
             while True: time.sleep(1000)
 
         else:
-            worker = self._load_worker(server, args)
-            # try n steps
-            for i in range(3): worker()
+            generator = self._load_worker(server, args)
 
-            # send state
-            self._send_state(ready=True)
+            try:
+                # try n steps
+                for i in range(3): next(generator)
 
-            # do
-            while True: worker()
+                # send state
+                self._notify(state='running')
+
+                # do
+                while True: next(generator)
+
+            except StopIteration:
+                self._notify(state='end')
 
 
     def _load_worker(self, server, args):
@@ -85,13 +90,13 @@ class Process(object):
         spec = importlib.util.spec_from_file_location("__importlib_module__", self._args.worker_path)
         m = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(m)
-        worker = m.create(server, args)
-        return worker
+        g = m.main(server, args)
+        return g
 
 
-    def _send_state(self, **kwargs):
-        if self._state is None: return
-        self._state.send(name=self._args.name, **kwargs)
+    def _notify(self, **kwargs):
+        if self._manager is None: return
+        self._manager.send(name=self._args.name, **kwargs)
 
 
 
