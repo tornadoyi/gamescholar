@@ -138,7 +138,7 @@ class Model(object):
         x = tf.reshape(lstm_outputs, [-1, lstm_size])
 
         chunk_index = 0
-        def resnet_chunck(input, count):
+        def residual(input, count):
             nonlocal chunk_index
             chunk_index += 1
             size = input.shape.as_list()[-1]
@@ -153,29 +153,31 @@ class Model(object):
             l = tf.nn.relu(l + input)
             return l
 
+        def resnet(input, cell_size, chunk_size):
+            l = input
+            for i in range(chunk_size): l = residual(l, cell_size)
+            return l
 
-        l = tf.nn.relu(linear(x, 1024, "fc_s_1", normalized_columns_initializer(0.01)))
-        l = resnet_chunck(l, 3)
-        l = tf.nn.relu(linear(l, 512, "fc_s_2", normalized_columns_initializer(0.01)))
-        l = resnet_chunck(l, 4)
-        l = tf.nn.relu(linear(l, 256, "fc_s_3", normalized_columns_initializer(0.01)))
-        l = resnet_chunck(l, 6)
-        x = l
 
         # action network
         l = x
-        l = tf.nn.relu(linear(l, 128, "fc_s_a_1", normalized_columns_initializer(0.01)))
-        l = resnet_chunck(l, 8)
-        l = tf.nn.relu(linear(l, 64, "fc_s_a_2", normalized_columns_initializer(0.01)))
-        in_action = resnet_chunck(l, 10)
-
+        l = tf.nn.relu(linear(l, 1024, "fc_s_a_1", normalized_columns_initializer(0.01)))
+        l = resnet(l, 2, 2)
+        l = tf.nn.relu(linear(l, 512, "fc_s_a_2", normalized_columns_initializer(0.01)))
+        l = resnet(l, 2, 3)
+        l = tf.nn.relu(linear(l, 256, "fc_s_a_3", normalized_columns_initializer(0.01)))
+        l = resnet(l, 2, 5)
+        in_action = l
 
         # value network
         l = x
-        l = tf.nn.relu(linear(l, 64, "fc_s_f_1", normalized_columns_initializer(0.01)))
-        l = resnet_chunck(l, 8)
-        l = tf.nn.relu(linear(l, 32, "fc_s_f_2", normalized_columns_initializer(0.01)))
-        in_value = resnet_chunck(l, 10)
+        l = tf.nn.relu(linear(l, 512, "fc_s_v_1", normalized_columns_initializer(0.01)))
+        l = resnet(l, 2, 2)
+        l = tf.nn.relu(linear(l, 256, "fc_s_v_2", normalized_columns_initializer(0.01)))
+        l = resnet(l, 2, 3)
+        l = tf.nn.relu(linear(l, 128, "fc_s_v_3", normalized_columns_initializer(0.01)))
+        l = resnet(l, 2, 5)
+        in_value = l
 
         self._create_logit_value(in_action, in_value)
 
