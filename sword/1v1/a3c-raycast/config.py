@@ -188,8 +188,7 @@ class EnvExtension():
             if e.sensed_object is None or type(e.sensed_object) == type(map.bounds): continue
             risk += np.max([0.5 - e.sensed_range / EYE_DYNAMIC_VIEW, 0]) * 2
         r -= risk
-
-        if risk > 0: print(risk)
+        #if risk > 0: print(risk)
 
         return r
 
