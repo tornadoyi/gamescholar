@@ -101,6 +101,7 @@ class Model(object):
 
     def _create_fc(self):
         x = self.s
+        self.state_in = tf.constant(0.0)
 
         l = x
         l = tf.nn.relu(linear(l, 1024, "pi_l1", normalized_columns_initializer(0.01)))

@@ -36,8 +36,9 @@ class Process(object):
             self._initialize()
 
         except Exception as e:
-            self._notify(state='running', error=e)
             logging.exception(e)
+            self._notify(state='running', error=e)
+
 
 
     def _initialize(self):

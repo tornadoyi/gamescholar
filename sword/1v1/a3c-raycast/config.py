@@ -18,7 +18,7 @@ config.MAP_SIZE = Vector2(15, 15)
 
 NUM_EYES = 30
 
-EYE_DYNAMIC_VIEW = np.max(config.MAP_SIZE) * 0.8
+EYE_DYNAMIC_VIEW = np.max(config.MAP_SIZE) * 0.5
 
 EYE_STATIC_VIEW = np.max(config.MAP_SIZE) * 0.2
 
@@ -164,25 +164,30 @@ class EnvExtension():
         map = self.game.map
         player, npcs = map.players[0], map.npcs
 
+        r = 0
 
-        # if player.attribute.hp < 1e-6: return -1
-        # elif len(npcs) == 0: return 1
-        # else: return 0
+        # hp reward
+        if player.attribute.hp < 1e-6:
+            r = -1
+        else:
+            sub_player_hp = player.attribute.hp - self.pre_player_hp
+            npc_hp = 0 if len(npcs) == 0 else sum([o.attribute.hp for o in npcs])
+            sub_npc_hp = npc_hp - self.pre_npc_hp
+
+            self.pre_player_hp = player.attribute.hp
+            self.pre_npc_hp = npc_hp
+
+            r = (sub_player_hp - sub_npc_hp) / self.max_hp
+
+            if len(npcs) == 0: r += player.attribute.hp / self.max_hp
 
 
+        # risk reward
+        # for e in player.eyes:
+        #     if e.sensed_object is None or type(e.sensed_object) == type(map.bounds): continue
+        #     e.sensed_range / EYE_DYNAMIC_VIEW
 
-        if player.attribute.hp < 1e-6: return -1
 
-        sub_player_hp = player.attribute.hp - self.pre_player_hp
-        npc_hp = 0 if len(npcs) == 0 else sum([o.attribute.hp for o in npcs])
-        sub_npc_hp = npc_hp - self.pre_npc_hp
-
-        self.pre_player_hp = player.attribute.hp
-        self.pre_npc_hp = npc_hp
-
-        r = (sub_player_hp - sub_npc_hp) / self.max_hp
-
-        if len(npcs) == 0: r += player.attribute.hp / self.max_hp
 
         return r
 
