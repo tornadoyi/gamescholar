@@ -84,8 +84,9 @@ class Model(object):
         self.batch_size = tf.to_float(tf.shape(self.s)[0])
 
         # create network
+        self._create_fc()
         #self._create_lstm_fc()
-        self._create_lstm_resnet()
+        #self._create_lstm_resnet()
 
         # create loss
         self._create_loss()
@@ -95,6 +96,22 @@ class Model(object):
 
         # collect var list
         self.var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, tf.get_variable_scope().name)
+
+
+
+    def _create_fc(self):
+        x = self.s
+
+        l = x
+        l = tf.nn.relu(linear(l, 1024, "pi_l1", normalized_columns_initializer(0.01)))
+        in_action = tf.nn.relu(linear(l, 512, "pi_l2", normalized_columns_initializer(0.01)))
+
+        l = x
+        l = tf.nn.relu(linear(l, 512, "vf_l1", normalized_columns_initializer(0.01)))
+        in_value = tf.nn.relu(linear(l, 256, "vf_l2", normalized_columns_initializer(0.01)))
+
+        self._create_logit_value(in_action, in_value)
+
 
 
     def _create_lstm_fc(self):
