@@ -13,7 +13,78 @@ def discount(x, gamma):
     return scipy.signal.lfilter([1], [1, -gamma], x[::-1], axis=0)[::-1]
 
 
-class TrainAgent(object):
+
+class Agent(object):
+
+    summary_scope = 'agent'
+
+    def __init__(self,
+                 ac, env,
+                 global_step, summary_writer,
+                 render=False,
+                 ):
+
+        self.ac = ac
+        self.env = env
+        self.global_step = global_step
+        self.summary_writer = summary_writer
+        self.render = render
+        self.sess = None
+
+        self.op_next_gloabl_step = self.global_step.assign_add(1)
+        self._create_summary()
+
+
+    def _create_summary(self):
+        self.reward = tf.placeholder(tf.float32, shape=())
+        self.running_reward = tf.placeholder(tf.float32, shape=())
+        self.victory = tf.placeholder(tf.float32, shape=())
+        summary_ops = [
+            tf.summary.scalar("{}/reward".format(self.summary_scope), self.reward),
+            tf.summary.scalar("{}/running_reward".format(self.summary_scope), self.running_reward),
+            tf.summary.scalar("{}/victory".format(self.summary_scope), self.victory)
+        ]
+        self.summary_op = tf.summary.merge(summary_ops)
+
+
+    def _reset(self):
+        self.v_reward = 0
+        return self.env.reset()
+
+
+    def _step(self, a):
+        a = np.argmax(a)
+        target = self.env.game.map.find('npc-0')
+        s_, r, done, info = self.env.step((a, target))
+        self.sess.run(self.op_next_gloabl_step)
+        self.v_reward += r
+        return s_, r, done, info
+
+
+    def _end(self):
+
+        # running reward
+        if not hasattr(self, 'v_runing_reward'): self.v_runing_reward = self.v_reward
+        self.v_runing_reward = 0.9 * self.v_runing_reward + 0.1 * self.v_reward
+
+        # victory
+        victory = 0 if len(self.env.game.map.npcs) > 0 else 1
+        if not hasattr(self, 'v_victory'): self.v_victory = victory
+        self.v_victory = 0.9 * self.v_victory + 0.1 * victory
+
+
+        summary, global_step = self.sess.run([self.summary_op, self.global_step], feed_dict = {
+            self.reward: self.v_reward,
+            self.running_reward: self.v_runing_reward,
+            self.victory: self.v_victory
+        })
+        self.summary_writer.add_summary(tf.Summary.FromString(summary), global_step)
+        self.summary_writer.flush()
+
+
+
+class TrainAgent(Agent):
+    summary_scope = 'worker'
 
     def __init__(self,
                  ac, env,
@@ -21,17 +92,11 @@ class TrainAgent(object):
                  render = False,
                  gamma=0.9, lambda_=1.0, update_nsteps=20):
 
-        self.ac = ac
-        self.env = env
-        self.global_step = global_step
-        self.summary_writer = summary_writer
+        super(TrainAgent, self).__init__(ac, env, global_step, summary_writer, render=render)
+
         self.gamma = gamma
         self.lambda_ = lambda_
         self.update_nsteps = update_nsteps
-        self.render = render
-
-        self.op_next_gloabl_step = self.global_step.assign_add(1)
-        self._create_summary()
 
 
 
@@ -115,61 +180,9 @@ class TrainAgent(object):
 
 
 
-    def _create_summary(self):
-        self.reward = tf.placeholder(tf.float32, shape=())
-        self.running_reward = tf.placeholder(tf.float32, shape=())
-        summary_ops = [
-            tf.summary.scalar("woker/reward", self.reward),
-            tf.summary.scalar("woker/running_reward", self.running_reward)
-        ]
-        self.summary_op = tf.summary.merge(summary_ops)
 
-
-    def _reset(self):
-        self.v_reward = 0
-        return self.env.reset()
-
-
-    def _step(self, a):
-        a = np.argmax(a)
-        target = self.env.game.map.find('npc-0')
-        s_, r, done, info = self.env.step((a, target))
-        self.sess.run(self.op_next_gloabl_step)
-        self.v_reward += r
-        return s_, r, done, info
-
-
-    def _end(self):
-        if not hasattr(self, 'v_runing_reward'): self.v_runing_reward = self.v_reward
-        self.v_runing_reward = 0.99 * self.v_runing_reward + 0.01 * self.v_reward
-
-        summary, global_step = self.sess.run([self.summary_op, self.global_step], feed_dict = {
-            self.reward: self.v_reward,
-            self.running_reward: self.v_runing_reward,
-        })
-        self.summary_writer.add_summary(tf.Summary.FromString(summary), global_step)
-        self.summary_writer.flush()
-
-
-
-
-
-
-
-class PlayAgent(object):
-    def __init__(self,
-                 ac, env,
-                 global_step, summary_writer,
-                 render=False,
-                 ):
-        self.ac = ac
-        self.env = env
-        self.global_step = global_step
-        self.summary_writer = summary_writer
-        self.render = render
-
-        self._create_summary()
-
+class PlayAgent(Agent):
+    summary_scope = 'play'
 
     def __call__(self, sess):
         self.sess = sess
@@ -196,38 +209,3 @@ class PlayAgent(object):
                 if done:
                     self._end()
                     break
-
-
-    def _create_summary(self):
-        self.reward = tf.placeholder(tf.float32, shape=())
-        self.running_reward = tf.placeholder(tf.float32, shape=())
-        summary_ops = [
-            tf.summary.scalar("play/reward", self.reward),
-            tf.summary.scalar("play/running_reward", self.running_reward)
-        ]
-        self.summary_op = tf.summary.merge(summary_ops)
-
-
-    def _reset(self):
-        self.v_reward = 0
-        return self.env.reset()
-
-
-    def _step(self, a):
-        a = np.argmax(a)
-        target = self.env.game.map.find('npc-0')
-        s_, r, done, info = self.env.step((a, target))
-        self.v_reward += r
-        return s_, r, done, info
-
-
-    def _end(self):
-        if not hasattr(self, 'v_runing_reward'): self.v_runing_reward = self.v_reward
-        self.v_runing_reward = 0.99 * self.v_runing_reward + 0.01 * self.v_reward
-
-        summary, global_step = self.sess.run([self.summary_op, self.global_step], feed_dict = {
-            self.reward: self.v_reward,
-            self.running_reward: self.v_runing_reward,
-        })
-        self.summary_writer.add_summary(tf.Summary.FromString(summary), global_step)
-        self.summary_writer.flush()
