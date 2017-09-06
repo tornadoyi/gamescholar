@@ -206,7 +206,7 @@ class Model(object):
         self.logits = linear(in_action, self.action_size, "action", normalized_columns_initializer(0.01))
 
         # valid action
-        self.valid_actions = linear(in_action, self.action_size, "valid_action", normalized_columns_initializer(0.01))
+        self.valid_actions = tf.nn.sigmoid(linear(in_action, self.action_size, "valid_action", normalized_columns_initializer(0.01)))
 
         # value function
         self.vf = tf.reshape(linear(in_value, 1, "value", normalized_columns_initializer(1.0)), [-1])

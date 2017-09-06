@@ -8,22 +8,12 @@ from gymgame.engine.geometry import geometry2d as g2d
 from gym import spaces
 from bokeh.plotting import figure
 
-
-
+#  game config
 GAME_NAME = config.GAME_NAME
 
-config.BOKEH_MODE = "notebook"  # you need run `bokeh serve` firstly
+config.RENDER_MODE = "notebook"  # you need run `bokeh serve` firstly
 
-config.MAP_SIZE = Vector2(15, 15)
-
-NUM_EYES = 30
-
-EYE_DYNAMIC_VIEW = np.max(config.MAP_SIZE) * 0.5
-
-EYE_STATIC_VIEW = np.max(config.MAP_SIZE) * 0.2
-
-DIRECT_MASK_RANGE = 1.0
-
+config.MAP_SIZE = Vector2(10, 10)
 
 config.GAME_PARAMS.fps = 24
 
@@ -35,14 +25,16 @@ config.NUM_NPC = 1
 
 config.PLAYER_INIT_RADIUS = (0.0, 0.0)
 
-config.NPC_INIT_RADIUS = 1 / config.MAP_SIZE * 7#(0.15, 0.2)
+config.NPC_INIT_RADIUS = (1.0, 1.0)
 
 config.NPC_SKILL_COUNT = 1
+
+
 
 config.SKILL_DICT = {
     'normal_attack' : Skill(
         id = 'normal_attack',
-        cast_time = 0.0,#0.1,
+        cast_time = 0.0,
         mp_cost = 0,
         target_required = True,
         target_relation = config.Relation.enemy,
@@ -52,26 +44,26 @@ config.SKILL_DICT = {
 
     'normal_shoot' : Skill(
         id = 'normal_shoot',
-        cast_time = 0.0, #0.3,
+        cast_time = 0.0,
         mp_cost = 0,
         bullet_emitter = SingleEmitter(
-            speed=0.3 * config.GAME_PARAMS.fps,
+            speed=1.0 * config.GAME_PARAMS.fps,
             penetration=1.0,
             max_range=config.MAP_SIZE.x * 0.8,
             radius=0.1,
-            factors=[Damage(5.0, config.Relation.enemy)])
+            factors=[Damage(2.0, config.Relation.enemy)])
     ),
 
     'puncture_shoot' : Skill(
         id = 'normal_shoot',
-        cast_time = 0.0,#0.3,
+        cast_time = 0.0,
         mp_cost = 0,
         bullet_emitter = SingleEmitter(
-            speed=0.3 * config.GAME_PARAMS.fps,
+            speed=1.0 * config.GAME_PARAMS.fps,
             penetration=np.Inf,
             max_range=config.MAP_SIZE.x * 0.8,
             radius=0.1,
-            factors=[Damage(5.0, config.Relation.enemy)])
+            factors=[Damage(2.0, config.Relation.enemy)])
     ),
 }
 
@@ -84,7 +76,7 @@ config.BASE_PLAYER = edict(
     id = "player-{0}",
     position = Vector2(0, 0),
     direct = Vector2(0, 0),
-    speed = 0.3 * config.GAME_PARAMS.fps,
+    speed = 0.5 * config.GAME_PARAMS.fps,
     radius = 0.5,
     max_hp = 100.0,
     camp = config.Camp[0],
@@ -96,13 +88,28 @@ config.BASE_NPC = edict(
     id = "npc-{0}",
     position = Vector2(0, 0),
     direct = Vector2(0, 0),
-    speed = 0.1 * config.GAME_PARAMS.fps,
+    speed = 0.25 * config.GAME_PARAMS.fps,
     radius = 0.5,
-    max_hp = 800.0,
+    max_hp = 100.0,
     camp = config.Camp[1],
     skills=config.NPC_SKILL_LIST
 )
 
+
+
+# algorithm config
+
+NUM_EYES = 30
+
+EYE_DYNAMIC_VIEW = config.BASE_NPC.speed * 20
+
+EYE_STATIC_VIEW = 1.5
+
+DIRECT_MASK_RANGE = 0.8
+
+RISK_RANGE = 5.0
+
+RISK_REWARD_RATIO = 1e-2  #  because player_atk / npc_hp = 2e-2
 
 
 
@@ -181,14 +188,17 @@ class EnvExtension():
 
             if len(npcs) == 0: r += player.attribute.hp / self.max_hp
 
+        #if r > 0: print(r)
 
         # risk reward
         risk = 0
-        for e in player.eyes:
-            if e.sensed_object is None or type(e.sensed_object) == type(map.bounds): continue
-            risk += np.max([0.5 - e.sensed_range / EYE_DYNAMIC_VIEW, 0]) * 2
-        r -= risk
-        #if risk > 0: print(risk)
+        if RISK_RANGE is not None:
+            for e in player.eyes:
+                if e.sensed_object is None or type(e.sensed_object) == type(map.bounds): continue
+                if e.sensed_range > RISK_RANGE: continue
+                risk += np.exp(-e.sensed_range + 1)
+
+        r -= risk * RISK_REWARD_RATIO
 
         return r
 
@@ -372,7 +382,8 @@ class PlayerRendererExtension():
             for e in player.eyes:
                 start_angles.append(np.radians(e.angles[0]))
                 end_angles.append(np.radians(e.angles[1]))
-                radius.append(e.sensed_range or 0.0)
+                #radius.append(e.sensed_range or 0.0)
+                radius.append(0.0 if e.sensed_range is None else np.max([e.sensed_range, 1.0]))
                 xs.append(x)
                 ys.append(y)
 

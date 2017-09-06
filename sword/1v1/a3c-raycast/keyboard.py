@@ -64,6 +64,7 @@ def run(render=False):
     env = gym.make(config.GAME_NAME)
     env = env.unwrapped
     env.reset()
+    if render: env.render()
 
     ACTION_KEYS = {
         Key.up: 0,
