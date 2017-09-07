@@ -255,9 +255,13 @@ class Model(object):
 
 
 
-    def choose_action(self, sess, s, features, a_mask):
-        return sess.run([self.sample, self.vf, self.state_out], {self.s: [s], self.state_in: features, self.a_mask: [a_mask]})
-
+    def choose_action(self, sess, s, features, a_mask, exploration=True):
+        if exploration:
+            return sess.run([self.sample, self.vf, self.state_out],
+                            {self.s: [s], self.state_in: features, self.a_mask: [a_mask]})
+        else:
+            return sess.run([self.probs, self.vf, self.state_out],
+                            {self.s: [s], self.state_in: features})
 
     def predict_value(self, sess, s, features):
         return sess.run(self.vf, {self.s: [s], self.state_in: features})[0]

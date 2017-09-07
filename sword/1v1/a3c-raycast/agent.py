@@ -199,7 +199,7 @@ class PlayAgent(Agent):
                 yield None
 
                 a_mask = self.env.serializer.get_action_mask(self.env)
-                a, v, next_features = self.ac.choose_action(sess, s, features, a_mask)
+                a, v, next_features = self.ac.choose_action(sess, s, features, a_mask, exploration=False)
                 s_, r, done, info = self._step(a)
                 if self.render: self.env.render()
 
