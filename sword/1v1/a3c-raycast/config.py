@@ -107,9 +107,9 @@ EYE_STATIC_VIEW = 1.5
 
 DIRECT_MASK_RANGE = 0.8
 
-RISK_RANGE = 5.0
+RISK_RANGE = 2.0
 
-RISK_REWARD_RATIO = 1e-2  #  because player_atk / npc_hp = 2e-2
+RISK_REWARD_RATIO = 1e-3  #  because player_atk / npc_hp = 2e-2
 
 
 

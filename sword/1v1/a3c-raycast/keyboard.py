@@ -7,7 +7,7 @@ import time
 import gym
 import config
 from pynput import keyboard
-from pynput.keyboard import Key
+from pynput.keyboard import Key, KeyCode
 
 
 def listen_to_mouse():
@@ -71,7 +71,7 @@ def run(render=False):
         Key.right: 2,
         Key.down: 4,
         Key.left: 6,
-        Key.space: 8
+        KeyCode(char='g'): 8
     }
 
     def on_press(key):
