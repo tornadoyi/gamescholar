@@ -34,7 +34,8 @@ def main(server, args):
     config = tf.ConfigProto(device_filters=["/job:ps", args.worker_device])
 
     # summary writer
-    summary_writer = tf.summary.FileWriter(os.path.join(args.log_dir, 'worker_{}'.format(args.index)))
+    summary_name = 'train' if args.mode == 'train' else 'play'
+    summary_writer = tf.summary.FileWriter(os.path.join(args.log_dir, '{}_{}'.format(summary_name, args.index)))
 
     # env
     env = gym.make(GAME_NAME).unwrapped
