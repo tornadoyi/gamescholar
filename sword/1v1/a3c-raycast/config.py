@@ -107,7 +107,7 @@ EYE_STATIC_VIEW = 1.5
 
 DIRECT_MASK_RANGE = 0.8
 
-RISK_RANGE = 2.0
+RISK_RANGE = None #2.0
 
 RISK_REWARD_RATIO = 1e-3  #  because player_atk / npc_hp = 2e-2
 
@@ -175,7 +175,7 @@ class EnvExtension():
 
         # hp reward
         if player.attribute.hp < 1e-6:
-            r = -1
+            r = -2
         else:
             sub_player_hp = player.attribute.hp - self.pre_player_hp
             npc_hp = 0 if len(npcs) == 0 else sum([o.attribute.hp for o in npcs])
