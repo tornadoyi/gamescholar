@@ -105,11 +105,15 @@ class Model(object):
 
         l = x
         l = tf.nn.relu(linear(l, 1024, "pi_l1", normalized_columns_initializer(0.01)))
-        in_action = tf.nn.relu(linear(l, 512, "pi_l2", normalized_columns_initializer(0.01)))
+        l = tf.nn.relu(linear(l, 512, "pi_l2", normalized_columns_initializer(0.01)))
+        #l = tf.nn.relu(linear(l, 256, "pi_l3", normalized_columns_initializer(0.01)))
+        in_action = l
 
         l = x
         l = tf.nn.relu(linear(l, 512, "vf_l1", normalized_columns_initializer(0.01)))
-        in_value = tf.nn.relu(linear(l, 256, "vf_l2", normalized_columns_initializer(0.01)))
+        l = tf.nn.relu(linear(l, 256, "vf_l2", normalized_columns_initializer(0.01)))
+        #l = tf.nn.relu(linear(l, 128, "vf_l3", normalized_columns_initializer(0.01)))
+        in_value = l
 
         self._create_logit_value(in_action, in_value)
 
@@ -250,6 +254,14 @@ class Model(object):
             tf.summary.scalar("model/entropy", self.entropy / self.batch_size),
             tf.summary.scalar("model/grad_norm", tf.global_norm(self.grads)),
         ]
+
+        prefix = tf.get_variable_scope().name + '/'
+        for var in self.model_vars:
+            assert var.name[:len(prefix)] == prefix
+            name = var.name[len(prefix):].replace(':', '_')
+            his = tf.summary.histogram('model/{}'.format(name), var)
+            summary_ops.append(his)
+
         self.summary_op = tf.summary.merge(summary_ops)
 
 

@@ -53,6 +53,7 @@ class Agent(object):
 
 
     def _step(self, a):
+        if np.any(np.isnan(a)): raise Exception('action has nan !!!')
         a = np.argmax(a)
         target = self.env.game.map.find('npc-0')
         s_, r, done, info = self.env.step((a, target))

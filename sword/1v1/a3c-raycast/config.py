@@ -175,7 +175,7 @@ class EnvExtension():
 
         # hp reward
         if player.attribute.hp < 1e-6:
-            r = -2
+            r = -0.5
         else:
             sub_player_hp = player.attribute.hp - self.pre_player_hp
             npc_hp = 0 if len(npcs) == 0 else sum([o.attribute.hp for o in npcs])
@@ -186,7 +186,6 @@ class EnvExtension():
 
             r = (sub_player_hp - sub_npc_hp) / self.max_hp
 
-            if len(npcs) == 0: r += player.attribute.hp / self.max_hp
 
         #if r > 0: print(r)
 
