@@ -48,6 +48,8 @@ class Model(object):
                                      {self.ob: ob[None], self.stochastic: stochastic})
         return ac1[0], vpred1[0]
 
+    def update_ob_norm(self, ob): pass
+
 
 
 

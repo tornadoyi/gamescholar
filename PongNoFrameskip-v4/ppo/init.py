@@ -3,10 +3,10 @@ import os
 import gym
 import tensorflow as tf
 
-from . import option
-from .model import MLPModel, CNNModel
-from .ppo import PPO
-from .worker import TrainWorker
+import option
+from model import MLPModel, CNNModel
+from ppo import PPO
+from worker import TrainWorker
 
 
 def mlp_model_func(ob_space, ac_space): return MLPModel(ob_space, ac_space, ob_filter=True, gaussian_fixed_var=True)
