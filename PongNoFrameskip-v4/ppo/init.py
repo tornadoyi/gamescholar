@@ -44,7 +44,7 @@ def main():
 
     # create worker
     if args.mode == 'train':
-        worker = TrainWorker(env, ppo, args.render,
+        worker = TrainWorker(env, ppo, args.render, args.index==0,
                     train_data_size=256, optimize_size=64, optimize_epochs=4,
                     gamma=0.99, lambda_=0.95, max_steps=1e6)
 

@@ -3,10 +3,11 @@ from baselines.common import Dataset
 
 
 class Worker(object):
-    def __init__(self, env, ppo, render=False):
+    def __init__(self, env, ppo, render=False, log_output=False):
         self.env = env
         self.ppo = ppo
         self.render = render
+        self.log_output = log_output
         self.steps = 0
 
 
@@ -16,20 +17,33 @@ class Worker(object):
         s = self.env.step(a)
         if self.render: self.env.render()
         self.steps += 1
+        self.record(s)
         return s
+
+
+    def record(self, s):
+        if not self.log_output: return
+        _, r, t, _ = s
+        if not hasattr(self, 'epoch_reward'): self.epoch_reward = 0
+        self.epoch_reward += r
+        if t:
+            if not hasattr(self, 'runing_reward'): self.runing_reward = self.epoch_reward
+            self.runing_reward = self.runing_reward * 0.9 + self.epoch_reward * 0.1
+            print('steps: {}  rewards: {}'.format(self.steps, self.runing_reward))
+            self.epoch_reward = 0
 
 
 
 
 class TrainWorker(Worker):
-    def __init__(self, env, ppo, render=False,
+    def __init__(self, env, ppo, render=False, log_output=False,
                  train_data_size=256, optimize_size=None, optimize_epochs=4,
                  gamma=0.99, lambda_=0.95,
                  optimize_step_size = 1e-3,
                  max_steps=np.inf,
                  lr_decay=False):
 
-        super(TrainWorker, self).__init__(env, ppo, render)
+        super(TrainWorker, self).__init__(env, ppo, render, log_output)
         self.train_data_size = train_data_size
         self.optimize_size = optimize_size
         self.optimize_epochs = optimize_epochs
