@@ -30,17 +30,18 @@ def main():
     config = tf.ConfigProto(
         allow_soft_placement=True,
         log_device_placement=False,
-        gpu_options=tf.GPUOptions(allow_growth=True)
+        gpu_options=tf.GPUOptions(allow_growth=True),
     )
     sess = tf.Session(config=config)
     sess.__enter__()
 
     # create env
-    env = gym.make(args.env).unwrapped
+    env = gym.make(args.env)
+    env = wrap_train(env)
 
     # create ppo
-    with tf.device(args.worker_device):
-        ppo = PPO(env.observation_space, env.action_space, cnn_model_func, clip_param=0.2, entcoeff=0.01)
+    #with tf.device(args.worker_device):
+    ppo = PPO(env.observation_space, env.action_space, cnn_model_func, clip_param=0.2, entcoeff=0.01)
 
     # create worker
     if args.mode == 'train':
@@ -54,6 +55,14 @@ def main():
 
     # start worker
     worker()
+
+
+
+def wrap_train(env):
+    from baselines.common.atari_wrappers import (wrap_deepmind, FrameStack)
+    env = wrap_deepmind(env, clip_rewards=True)
+    env = FrameStack(env, 4)
+    return env
 
 
 if __name__ == '__main__':
